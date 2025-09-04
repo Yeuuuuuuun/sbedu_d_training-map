@@ -1,0 +1,35 @@
+name: Deploy Kakao Map to Pages
+
+on:
+  push:
+    branches: [ main ]  # 기본 브랜치에 맞게 수정
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 플레이스홀더를 시크릿 값으로 치환
+      - name: Inject Kakao JS Key
+        run: |
+          sed -i "s/__KAKAO_JS_KEY__/${KAKAO_JS_KEY}/g" index.html
+        env:
+          KAKAO_JS_KEY: ${{ secrets.KAKAO_JS_KEY }}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .  # 루트 전체 배포 (필요시 경로 조정)
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
