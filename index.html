@@ -4,22 +4,27 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>연수 지도 — 서대문·마포·은평</title>
+
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <!-- MarkerCluster -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
   <!-- dayjs -->
   <script src="https://unpkg.com/dayjs@1.11.10/dayjs.min.js"></script>
   <script src="https://unpkg.com/dayjs@1.11.10/plugin/customParseFormat.js"></script>
+  <script src="https://unpkg.com/dayjs@1.11.10/locale/ko.js"></script>
+  <script>
+    dayjs.extend(dayjs_plugin_customParseFormat);
+    dayjs.locale('ko');
+  </script>
+
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     html, body {
       height: 100%;
@@ -42,9 +47,7 @@
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.03);
     }
 
-    .header {
-      margin-bottom: 32px;
-    }
+    .header { margin-bottom: 32px; }
 
     .title {
       font-size: 28px;
@@ -53,15 +56,9 @@
       margin-bottom: 8px;
     }
 
-    .subtitle {
-      color: #86868b;
-      font-size: 15px;
-      line-height: 1.4;
-    }
+    .subtitle { color: #86868b; font-size: 15px; line-height: 1.4; }
 
-    .section {
-      margin-bottom: 32px;
-    }
+    .section { margin-bottom: 32px; }
 
     .section-title {
       font-size: 17px;
@@ -105,224 +102,71 @@
       transition: all 0.2s ease;
       color: #1d1d1f;
     }
-
-    .date-cell:hover:not(.disabled) {
-      background: #f5f5f7;
-    }
-
-    .date-cell.selected {
-      background: #007aff;
-      color: white;
-    }
-
-    .date-cell.has-training {
-      background: #34c759;
-      color: white;
-      font-weight: 600;
-    }
-
-    .date-cell.has-training.selected {
-      background: #007aff;
-      box-shadow: 0 0 0 2px #34c759;
-    }
-
-    .date-cell.disabled {
-      color: #d1d1d6;
-      cursor: not-allowed;
-    }
+    .date-cell:hover:not(.disabled) { background: #f5f5f7; }
+    .date-cell.selected { background: #007aff; color: white; }
+    .date-cell.has-training { background: #34c759; color: white; font-weight: 600; }
+    .date-cell.has-training.selected { background: #007aff; box-shadow: 0 0 0 2px #34c759; }
+    .date-cell.disabled { color: #d1d1d6; cursor: not-allowed; }
 
     /* 과정 필터 */
-    .course-filters {
-      display: grid;
-      gap: 8px;
-    }
-
+    .course-filters { display: grid; gap: 8px; }
     .course-filter {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      background: white;
-      border-radius: 12px;
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; background: white; border-radius: 12px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
       border: 1px solid rgba(0, 0, 0, 0.06);
-      cursor: pointer;
-      transition: all 0.2s ease;
-      user-select: none;
+      cursor: pointer; transition: all 0.2s ease; user-select: none;
     }
-
-    .course-filter:hover {
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    .course-filter.active {
-      border-color: transparent;
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-    }
-
-    .course-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .course-name {
-      font-size: 15px;
-      font-weight: 500;
-      color: #1d1d1f;
-      flex: 1;
-    }
-
-    .course-toggle {
-      width: 44px;
-      height: 26px;
-      background: #e5e5ea;
-      border-radius: 13px;
-      position: relative;
-      transition: all 0.2s ease;
-    }
-
+    .course-filter:hover { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+    .course-filter.active { border-color: transparent; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15); }
+    .course-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .course-name { font-size: 15px; font-weight: 500; color: #1d1d1f; flex: 1; }
+    .course-toggle { width: 44px; height: 26px; background: #e5e5ea; border-radius: 13px; position: relative; transition: all 0.2s ease; }
     .course-toggle::after {
-      content: '';
-      position: absolute;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: white;
-      top: 2px;
-      left: 2px;
-      transition: all 0.2s ease;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      content: ''; position: absolute; width: 22px; height: 22px;
+      border-radius: 50%; background: white; top: 2px; left: 2px;
+      transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
-
-    .course-filter.active .course-toggle {
-      background: #34c759;
-    }
-
-    .course-filter.active .course-toggle::after {
-      left: 20px;
-    }
+    .course-filter.active .course-toggle { background: #34c759; }
+    .course-filter.active .course-toggle::after { left: 20px; }
 
     /* 통계 */
-    .stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 24px;
-    }
-
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; }
     .stat-card {
-      background: white;
-      border-radius: 12px;
-      padding: 16px;
-      text-align: center;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-      border: 1px solid rgba(0, 0, 0, 0.06);
+      background: white; border-radius: 12px; padding: 16px; text-align: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); border: 1px solid rgba(0, 0, 0, 0.06);
     }
-
-    .stat-number {
-      font-size: 24px;
-      font-weight: 700;
-      color: #007aff;
-      margin-bottom: 4px;
-    }
-
-    .stat-label {
-      font-size: 13px;
-      color: #86868b;
-      font-weight: 500;
-    }
+    .stat-number { font-size: 24px; font-weight: 700; color: #007aff; margin-bottom: 4px; }
+    .stat-label { font-size: 13px; color: #86868b; font-weight: 500; }
 
     /* 지도 */
-    #map {
-      height: 100%;
-      width: 100%;
-    }
+    #map { height: 100%; width: 100%; }
 
     /* 마커 스타일 */
     .marker {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      font-weight: 700;
-      color: white;
+      width: 20px; height: 20px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: white;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       border: 2px solid white;
     }
-
-    .marker.single {
-      background: var(--mcolor);
-    }
-
-    .marker.split {
-      background: conic-gradient(var(--mcolorA) 0 50%, var(--mcolorB) 0 100%);
-    }
+    .marker.single { background: var(--mcolor); }
+    .marker.split { background: conic-gradient(var(--mcolorA) 0 50%, var(--mcolorB) 0 100%); }
 
     /* 팝업 스타일 */
-    .popup {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    }
-
-    .popup h3 {
-      margin: 0 0 8px;
-      font-size: 16px;
-      font-weight: 600;
-      color: #1d1d1f;
-    }
-
-    .popup .addr {
-      color: #86868b;
-      font-size: 13px;
-      margin-bottom: 12px;
-    }
-
-    .popup .sessions {
-      display: grid;
-      gap: 8px;
-    }
-
-    .popup .session {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      background: #f5f5f7;
-      border-radius: 8px;
-    }
-
-    .popup .course-badge {
-      padding: 2px 8px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 600;
-      color: white;
-    }
-
-    .popup .session-time {
-      font-size: 13px;
-      color: #1d1d1f;
-    }
+    .popup { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+    .popup h3 { margin: 0 0 8px; font-size: 16px; font-weight: 600; color: #1d1d1f; }
+    .popup .addr { color: #86868b; font-size: 13px; margin-bottom: 12px; }
+    .popup .sessions { display: grid; gap: 8px; }
+    .popup .session { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f5f5f7; border-radius: 8px; }
+    .popup .course-badge { padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; color: white; }
+    .popup .session-time { font-size: 13px; color: #1d1d1f; }
 
     /* 반응형 */
     @media (max-width: 768px) {
-      .app {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr;
-      }
-
-      .sidebar {
-        padding: 16px;
-        max-height: 300px;
-      }
-
-      .title {
-        font-size: 24px;
-      }
+      .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+      .sidebar { padding: 16px; max-height: 300px; }
+      .title { font-size: 24px; }
     }
   </style>
 </head>
@@ -357,436 +201,499 @@
         </div>
       </div>
     </div>
-    
+
     <div id="map"></div>
   </div>
 
-<script>
-// 원본 데이터
-const RAW = [
-  ["S1","염리초","9.15.","14:30","16:10","①에듀테크 주토피아","서울 마포구 토정로37길 37"],
-  ["S2","홍제초","9.16.","14:30","16:10","②AI관람차","서울 서대문구 홍은중앙로 13"],
-  ["S3","어울초","9.16.","15:00","16:40","⑤평가 익스프레스","서울 은평구 통일로 650"],
-  ["S4","인왕초","9.16.","15:00","16:40","⑥업무 레볼루션","서울 서대문구 세무서길 33-9"],
-  ["S5","가재울초","9.17.","14:00","15:40","④수업 바이킹","서울 서대문구 모래내로15길 61"],
-  ["S6","연신초","9.17.","14:00","15:40","④수업 바이킹","서울 은평구 연서로 347"],
-  ["S7","성산초","9.17.","14:30","16:10","⑦파라오의 학급경영","서울 마포구 양화로3길 94"],
-  ["S8","신사초","9.17.","14:50","16:30","②AI관람차","서울 은평구 가좌로 275-2"],
-  ["S9","금화초","9.18.","15:00","16:40","①에듀테크 주토피아","서울 서대문구 통일로 165"],
-  ["S10","금화초","9.18.","15:00","16:40","⑥업무 레볼루션","서울 서대문구 통일로 165"],
-  ["S11","은진초","9.22.","15:00","16:40","①에듀테크 주토피아","서울 은평구 진관1로 21-20"],
-  ["S12","소의초","9.22.","15:00","16:40","②AI관람차","서울 마포구 마포대로24길 42"],
-  ["S13","신도초","9.22.","15:00","16:40","①에듀테크 주토피아","서울 은평구 진관1로 77-23"],
-  ["S14","홍연초","9.23.","14:30","16:10","①에듀테크 주토피아","서울 서대문구 백련사길 55"],
-  ["S15","성원초","9.23.","15:00","16:40","⑦파라오의 학급경영","서울 마포구 월드컵로36길 34"],
-  ["S16","구산초","9.24.","14:30","16:10","②AI관람차","서울 은평구 서오릉로15길 16"],
-  ["S17","북성초","9.24.","14:30","16:10","⑦파라오의 학급경영","서울 서대문구 북아현로1나길 22"],
-  ["S18","중동초","9.24.","14:40","16:20","④수업 바이킹","서울 마포구 월드컵북로 152"],
-  ["S19","연은초","9.25.","14:40","16:10","⑤평가 익스프레스","서울 은평구 백련산로2길 35"],
-  ["S20","마포초","9.29.","14:40","16:20","①에듀테크 주토피아","서울 마포구 도화2길 64"],
-  ["S21","마포초","9.29.","14:40","16:20","②AI관람차","서울 마포구 도화2길 64"],
-  ["S22","연광초","9.30.","14:30","16:10","②AI관람차","서울 은평구 연서로35길 37"],
-  ["S23","경기초","9.30.","15:20","17:00","④수업 바이킹","서울 서대문구 경기대로9길 10"],
-  ["S24","갈현초","10.1.","14:40","16:20","④수업 바이킹","서울 은평구 연서로29길 31"],
-  ["S25","증산초","10.13.","15:00","16:40","⑦파라오의 학급경영","서울 은평구 증산서길 61"],
-  ["S26","신북초","10.14.","14:50","16:20","⑤평가 익스프레스","서울 마포구 월드컵북로38길 26"],
-  ["S27","명지초","10.15.","15:00","16:40","⑥업무 레볼루션","서울 서대문구 명지2길 32-20"],
-  ["S28","수색초","10.15.","15:00","16:40","④수업 바이킹","서울 은평구 수색로16길 21"],
-  ["S29","예일초","10.20.","14:30","16:10","①에듀테크 주토피아","서울 은평구 연서로 117"],
-  ["S30","이대부초","10.21.","15:30","17:10","④수업 바이킹","서울 서대문구 성산로 512-39"],
-  ["S31","고은초","10.22.","15:00","16:40","④수업 바이킹","서울 서대문구 모래내로 441"],
-  ["S32","응암초","10.22.","14:30","16:10","⑤평가 익스프레스","서울 은평구 가좌로6길 20"],
-  ["S33","응암초","10.22.","14:30","16:10","⑥업무 레볼루션","서울 은평구 가좌로6길 20"],
-  ["S34","구현초","11.3.","14:50","16:30","②AI관람차","서울 은평구 갈현로15길 51"],
-  ["S35","수리초","11.3.","15:00","16:40","②AI관람차","서울 은평구 불광로14길 10-10"],
-  ["S36","대은초","11.4.","14:30","16:10","⑥업무 레볼루션","서울 은평구 통일로69길 12-15"],
-  ["S37","녹번초","11.5.","14:00","15:40","⑥업무 레볼루션","서울 은평구 녹번로1길 1"],
-  ["S38","녹번초","11.5.","14:00","15:40","②AI관람차","서울 은평구 녹번로1길 1"],
-  ["S39","안산초","11.5.","14:00","15:40","⑦파라오의 학급경영","서울 서대문구 통일로 321"],
-  ["S40","충암초","11.5.","14:30","15:10","⑥업무 레볼루션","서울 은평구 가좌로5길 5"],
-  ["S41","공덕초","11.11.","14:30","16:20","⑥업무 레볼루션","서울 마포구 만리재옛길 13"],
-  ["S42","한서초","11.12.","14:00","15:40","①에듀테크 주토피아","서울 마포구 대흥로24바길 27"],
-  ["S43","아현초","11.12.","14:30","16:10","⑦파라오의 학급경영","서울 마포구 굴레방로 6"],
-  ["S44","상암초","11.17.","14:50","16:30","⑥업무 레볼루션","서울 마포구 월드컵북로 353"],
-  ["S45","불광초","11.19.","14:30","16:10","⑥업무 레볼루션","서울 은평구 불광로 51"],
-  ["S46","홍대부초","11.19.","14:30","16:10","⑦파라오의 학급경영","서울 마포구 성미산로 51"]
-];
+  <script>
+  // ===== 상수 =====
+  const SEOUL_CENTER = [37.5665, 126.9780];
+  const MAX_FIT_ZOOM = 15;
 
-// 과정 정보
-const COURSES = {
-  '①에듀테크 주토피아': { name: '에듀테크 주토피아', color: '#34c759' },
-  '②AI관람차': { name: 'AI관람차', color: '#007aff' },
-  '④수업 바이킹': { name: '수업 바이킹', color: '#ff3b30' },
-  '⑤평가 익스프레스': { name: '평가 익스프레스', color: '#ff9500' },
-  '⑥업무 레볼루션': { name: '업무 레볼루션', color: '#af52de' },
-  '⑦파라오의 학급경영': { name: '파라오의 학급경영', color: '#ff2d92' }
-};
+  // ===== 원본 데이터 =====
+  const RAW = [
+    ["S1","염리초","9.15.","14:30","16:10","①에듀테크 주토피아","서울 마포구 토정로37길 37"],
+    ["S2","홍제초","9.16.","14:30","16:10","②AI관람차","서울 서대문구 홍은중앙로 13"],
+    ["S3","어울초","9.16.","15:00","16:40","⑤평가 익스프레스","서울 은평구 통일로 650"],
+    ["S4","인왕초","9.16.","15:00","16:40","⑥업무 레볼루션","서울 서대문구 세무서길 33-9"],
+    ["S5","가재울초","9.17.","14:00","15:40","④수업 바이킹","서울 서대문구 모래내로15길 61"],
+    ["S6","연신초","9.17.","14:00","15:40","④수업 바이킹","서울 은평구 연서로 347"],
+    ["S7","성산초","9.17.","14:30","16:10","⑦파라오의 학급경영","서울 마포구 양화로3길 94"],
+    ["S8","신사초","9.17.","14:50","16:30","②AI관람차","서울 은평구 가좌로 275-2"],
+    ["S9","금화초","9.18.","15:00","16:40","①에듀테크 주토피아","서울 서대문구 통일로 165"],
+    ["S10","금화초","9.18.","15:00","16:40","⑥업무 레볼루션","서울 서대문구 통일로 165"],
+    ["S11","은진초","9.22.","15:00","16:40","①에듀테크 주토피아","서울 은평구 진관1로 21-20"],
+    ["S12","소의초","9.22.","15:00","16:40","②AI관람차","서울 마포구 마포대로24길 42"],
+    ["S13","신도초","9.22.","15:00","16:40","①에듀테크 주토피아","서울 은평구 진관1로 77-23"],
+    ["S14","홍연초","9.23.","14:30","16:10","①에듀테크 주토피아","서울 서대문구 백련사길 55"],
+    ["S15","성원초","9.23.","15:00","16:40","⑦파라오의 학급경영","서울 마포구 월드컵로36길 34"],
+    ["S16","구산초","9.24.","14:30","16:10","②AI관람차","서울 은평구 서오릉로15길 16"],
+    ["S17","북성초","9.24.","14:30","16:10","⑦파라오의 학급경영","서울 서대문구 북아현로1나길 22"],
+    ["S18","중동초","9.24.","14:40","16:20","④수업 바이킹","서울 마포구 월드컵북로 152"],
+    ["S19","연은초","9.25.","14:40","16:10","⑤평가 익스프레스","서울 은평구 백련산로2길 35"],
+    ["S20","마포초","9.29.","14:40","16:20","①에듀테크 주토피아","서울 마포구 도화2길 64"],
+    ["S21","마포초","9.29.","14:40","16:20","②AI관람차","서울 마포구 도화2길 64"],
+    ["S22","연광초","9.30.","14:30","16:10","②AI관람차","서울 은평구 연서로35길 37"],
+    ["S23","경기초","9.30.","15:20","17:00","④수업 바이킹","서울 서대문구 경기대로9길 10"],
+    ["S24","갈현초","10.1.","14:40","16:20","④수업 바이킹","서울 은평구 연서로29길 31"],
+    ["S25","증산초","10.13.","15:00","16:40","⑦파라오의 학급경영","서울 은평구 증산서길 61"],
+    ["S26","신북초","10.14.","14:50","16:20","⑤평가 익스프레스","서울 마포구 월드컵북로38길 26"],
+    ["S27","명지초","10.15.","15:00","16:40","⑥업무 레볼루션","서울 서대문구 명지2길 32-20"],
+    ["S28","수색초","10.15.","15:00","16:40","④수업 바이킹","서울 은평구 수색로16길 21"],
+    ["S29","예일초","10.20.","14:30","16:10","①에듀테크 주토피아","서울 은평구 연서로 117"],
+    ["S30","이대부초","10.21.","15:30","17:10","④수업 바이킹","서울 서대문구 성산로 512-39"],
+    ["S31","고은초","10.22.","15:00","16:40","④수업 바이킹","서울 서대문구 모래내로 441"],
+    ["S32","응암초","10.22.","14:30","16:10","⑤평가 익스프레스","서울 은평구 가좌로6길 20"],
+    ["S33","응암초","10.22.","14:30","16:10","⑥업무 레볼루션","서울 은평구 가좌로6길 20"],
+    ["S34","구현초","11.3.","14:50","16:30","②AI관람차","서울 은평구 갈현로15길 51"],
+    ["S35","수리초","11.3.","15:00","16:40","②AI관람차","서울 은평구 불광로14길 10-10"],
+    ["S36","대은초","11.4.","14:30","16:10","⑥업무 레볼루션","서울 은평구 통일로69길 12-15"],
+    ["S37","녹번초","11.5.","14:00","15:40","⑥업무 레볼루션","서울 은평구 녹번로1길 1"],
+    ["S38","녹번초","11.5.","14:00","15:40","②AI관람차","서울 은평구 녹번로1길 1"],
+    ["S39","안산초","11.5.","14:00","15:40","⑦파라오의 학급경영","서울 서대문구 통일로 321"],
+    ["S40","충암초","11.5.","14:30","15:10","⑥업무 레볼루션","서울 은평구 가좌로5길 5"],
+    ["S41","공덕초","11.11.","14:30","16:20","⑥업무 레볼루션","서울 마포구 만리재옛길 13"],
+    ["S42","한서초","11.12.","14:00","15:40","①에듀테크 주토피아","서울 마포구 대흥로24바길 27"],
+    ["S43","아현초","11.12.","14:30","16:10","⑦파라오의 학급경영","서울 마포구 굴레방로 6"],
+    ["S44","상암초","11.17.","14:50","16:30","⑥업무 레볼루션","서울 마포구 월드컵북로 353"],
+    ["S45","불광초","11.19.","14:30","16:10","⑥업무 레볼루션","서울 은평구 불광로 51"],
+    ["S46","홍대부초","11.19.","14:30","16:10","⑦파라오의 학급경영","서울 마포구 성미산로 51"]
+  ];
 
-// 학교별 좌표 (대략적인 위치)
-const SCHOOL_COORDS = {
-  '염리초': [37.5449, 126.9362],
-  '홍제초': [37.5886, 126.9292],
-  '어울초': [37.6089, 126.9167],
-  '인왕초': [37.5744, 126.9685],
-  '가재울초': [37.5698, 126.9423],
-  '연신초': [37.6178, 126.9211],
-  '성산초': [37.5633, 126.9134],
-  '신사초': [37.5789, 126.9089],
-  '금화초': [37.5665, 126.9461],
-  '은진초': [37.6367, 126.9178],
-  '소의초': [37.5489, 126.9584],
-  '신도초': [37.6445, 126.9267],
-  '홍연초': [37.5744, 126.9312],
-  '성원초': [37.5689, 126.9012],
-  '구산초': [37.6089, 126.9134],
-  '북성초': [37.5744, 126.9423],
-  '중동초': [37.5767, 126.9089],
-  '연은초': [37.6178, 126.9089],
-  '마포초': [37.5544, 126.9489],
-  '연광초': [37.6089, 126.9178],
-  '경기초': [37.5665, 126.9423],
-  '갈현초': [37.6089, 126.9134],
-  '증산초': [37.5889, 126.9089],
-  '신북초': [37.5767, 126.9012],
-  '명지초': [37.5665, 126.9312],
-  '수색초': [37.5889, 126.9089],
-  '예일초': [37.6089, 126.9178],
-  '이대부초': [37.5589, 126.9445],
-  '고은초': [37.5698, 126.9367],
-  '응암초': [37.5889, 126.9134],
-  '구현초': [37.6089, 126.9089],
-  '수리초': [37.6134, 126.9178],
-  '대은초': [37.6089, 126.9267],
-  '녹번초': [37.6089, 126.9223],
-  '안산초': [37.5744, 126.9534],
-  '충암초': [37.5889, 126.9089],
-  '공덕초': [37.5444, 126.9534],
-  '한서초': [37.5544, 126.9589],
-  '아현초': [37.5544, 126.9634],
-  '상암초': [37.5789, 126.8889],
-  '불광초': [37.6089, 126.9289],
-  '홍대부초': [37.5533, 126.9234]
-};
+  // 과정 정보
+  const COURSES = {
+    '①에듀테크 주토피아': { name: '에듀테크 주토피아', color: '#34c759' },
+    '②AI관람차': { name: 'AI관람차', color: '#007aff' },
+    '④수업 바이킹': { name: '수업 바이킹', color: '#ff3b30' },
+    '⑤평가 익스프레스': { name: '평가 익스프레스', color: '#ff9500' },
+    '⑥업무 레볼루션': { name: '업무 레볼루션', color: '#af52de' },
+    '⑦파라오의 학급경영': { name: '파라오의 학급경영', color: '#ff2d92' }
+  };
 
-// 전역 변수
-let map, cluster;
-let selectedDates = new Set();
-let activeCourses = new Set(Object.keys(COURSES));
-let allData = [];
+  // 학교별 좌표 (대략 위치)
+  const SCHOOL_COORDS = {
+    '염리초': [37.5449, 126.9362],
+    '홍제초': [37.5886, 126.9292],
+    '어울초': [37.6089, 126.9167],
+    '인왕초': [37.5744, 126.9685],
+    '가재울초': [37.5698, 126.9423],
+    '연신초': [37.6178, 126.9211],
+    '성산초': [37.5633, 126.9134],
+    '신사초': [37.5789, 126.9089],
+    '금화초': [37.5665, 126.9461],
+    '은진초': [37.6367, 126.9178],
+    '소의초': [37.5489, 126.9584],
+    '신도초': [37.6445, 126.9267],
+    '홍연초': [37.5744, 126.9312],
+    '성원초': [37.5689, 126.9012],
+    '구산초': [37.6089, 126.9134],
+    '북성초': [37.5744, 126.9423],
+    '중동초': [37.5767, 126.9089],
+    '연은초': [37.6178, 126.9089],
+    '마포초': [37.5544, 126.9489],
+    '연광초': [37.6089, 126.9178],
+    '경기초': [37.5665, 126.9423],
+    '갈현초': [37.6089, 126.9134],
+    '증산초': [37.5889, 126.9089],
+    '신북초': [37.5767, 126.9012],
+    '명지초': [37.5665, 126.9312],
+    '수색초': [37.5889, 126.9089],
+    '예일초': [37.6089, 126.9178],
+    '이대부초': [37.5589, 126.9445],
+    '고은초': [37.5698, 126.9367],
+    '응암초': [37.5889, 126.9134],
+    '구현초': [37.6089, 126.9089],
+    '수리초': [37.6134, 126.9178],
+    '대은초': [37.6089, 126.9267],
+    '녹번초': [37.6089, 126.9223],
+    '안산초': [37.5744, 126.9534],
+    '충암초': [37.5889, 126.9089],
+    '공덕초': [37.5444, 126.9534],
+    '한서초': [37.5544, 126.9589],
+    '아현초': [37.5544, 126.9634],
+    '상암초': [37.5789, 126.8889],
+    '불광초': [37.6089, 126.9289],
+    '홍대부초': [37.5533, 126.9234]
+  };
 
-// 데이터 처리
-function parseDate(dateStr) {
-  const cleaned = dateStr.replace(/\s*/g, '');
-  const [month, day] = cleaned.split('.').filter(Boolean);
-  return `2025-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-}
+  // ===== 전역 상태 =====
+  let map, cluster;
+  let selectedDates = new Set();
+  let activeCourses = new Set(Object.keys(COURSES));
+  let allData = [];
 
-function buildDataset() {
-  const schoolMap = new Map();
-  
-  RAW.forEach(row => {
-    const [id, school, dateStr, startTime, endTime, course, addr] = row;
-    const date = parseDate(dateStr);
-    const startDateTime = dayjs(`${date} ${startTime}`, 'YYYY-MM-DD HH:mm');
-    const endDateTime = dayjs(`${date} ${endTime}`, 'YYYY-MM-DD HH:mm');
-    
-    const key = `${school}@@${addr}`;
-    if (!schoolMap.has(key)) {
-      const coords = SCHOOL_COORDS[school] || [37.5665, 126.9780];
-      schoolMap.set(key, {
-        id: key,
-        school,
-        addr,
-        lat: coords[0],
-        lng: coords[1],
-        sessions: [],
-        courses: new Set()
+  // ===== 유틸 =====
+  function parseDate(dateStr) {
+    const cleaned = dateStr.replace(/\s*/g, '');
+    const [month, day] = cleaned.split('.').filter(Boolean);
+    return `2025-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  function cleanCourseName(name) {
+    // "①에듀테크 주토피아" → "에듀테크 주토피아"
+    return String(name).replace(/^[^\w가-힣]+/, '');
+  }
+
+  // 데이터 정규화: 같은 학교(주소) 묶기
+  function buildDataset() {
+    const schoolMap = new Map();
+    RAW.forEach(row => {
+      const [id, school, dateStr, startTime, endTime, course, addr] = row;
+      const date = parseDate(dateStr);
+      const startDateTime = dayjs(`${date} ${startTime}`, 'YYYY-MM-DD HH:mm');
+      const endDateTime = dayjs(`${date} ${endTime}`, 'YYYY-MM-DD HH:mm');
+
+      const key = `${school}@@${addr}`;
+      if (!schoolMap.has(key)) {
+        const coords = SCHOOL_COORDS[school] || SEOUL_CENTER;
+        schoolMap.set(key, {
+          id: key,
+          school,
+          addr,
+          lat: coords[0],
+          lng: coords[1],
+          sessions: [],
+          courses: new Set()
+        });
+      }
+
+      const item = schoolMap.get(key);
+      item.sessions.push({
+        id,
+        date: startDateTime.format('YYYY-MM-DD'),
+        startTime: startDateTime.format('HH:mm'),
+        endTime: endDateTime.format('HH:mm'),
+        course
+      });
+      item.courses.add(course);
+    });
+
+    return Array.from(schoolMap.values()).map(item => ({
+      ...item,
+      courses: Array.from(item.courses)
+    }));
+  }
+
+  // 지도 초기화
+  function initMap() {
+    map = L.map('map').setView(SEOUL_CENTER, 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    cluster = L.markerClusterGroup({
+      disableClusteringAtZoom: 15,
+      maxClusterRadius: 50
+    });
+    map.addLayer(cluster);
+  }
+
+  // 마커 아이콘
+  function createMarkerIcon(courses) {
+    const list = courses.slice(0, 2);
+    const more = courses.length - list.length;
+
+    if (list.length === 1) {
+      const color = COURSES[list[0]]?.color || '#666';
+      return L.divIcon({
+        className: '',
+        html: `<div class="marker single" style="--mcolor: ${color}"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
+    } else {
+      const color1 = COURSES[list[0]]?.color || '#666';
+      const color2 = COURSES[list[1]]?.color || '#666';
+      const text = more > 0 ? `+${more}` : '';
+      return L.divIcon({
+        className: '',
+        html: `<div class="marker split" style="--mcolorA: ${color1}; --mcolorB: ${color2}">${text}</div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
       });
     }
-    
-    const item = schoolMap.get(key);
-    item.sessions.push({
-      id,
-      date: startDateTime.format('YYYY-MM-DD'),
-      startTime: startDateTime.format('HH:mm'),
-      endTime: endDateTime.format('HH:mm'),
-      course
-    });
-    item.courses.add(course);
-  });
-  
-  return Array.from(schoolMap.values()).map(item => ({
-    ...item,
-    courses: Array.from(item.courses)
-  }));
-}
-
-// 지도 초기화
-function initMap() {
-  map = L.map('map').setView([37.5665, 126.9780], 12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '© OpenStreetMap contributors'
-  }).addTo(map);
-  
-  cluster = L.markerClusterGroup({
-    disableClusteringAtZoom: 15,
-    maxClusterRadius: 50
-  });
-  map.addLayer(cluster);
-}
-
-// 마커 생성
-function createMarkerIcon(courses) {
-  if (courses.length === 1) {
-    const color = COURSES[courses[0]]?.color || '#666';
-    return L.divIcon({
-      className: '',
-      html: `<div class="marker single" style="--mcolor: ${color}"></div>`,
-      iconSize: [20, 20],
-      iconAnchor: [10, 10]
-    });
-  } else {
-    const color1 = COURSES[courses[0]]?.color || '#666';
-    const color2 = COURSES[courses[1]]?.color || '#666';
-    return L.divIcon({
-      className: '',
-      html: `<div class="marker split" style="--mcolorA: ${color1}; --mcolorB: ${color2}"></div>`,
-      iconSize: [20, 20],
-      iconAnchor: [10, 10]
-    });
   }
-}
 
-// 팝업 HTML 생성
-function createPopupHTML(item) {
-  const sessionsHTML = item.sessions
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map(session => {
-      const courseInfo = COURSES[session.course];
-      const dateObj = dayjs(session.date);
-      return `
-        <div class="session">
-          <div class="course-badge" style="background: ${courseInfo?.color || '#666'}">
-            ${courseInfo?.name || session.course}
+  // 팝업 HTML
+  function createPopupHTML(item) {
+    const sessionsHTML = item.sessions
+      .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))
+      .map(session => {
+        const courseInfo = COURSES[session.course];
+        const dateObj = dayjs(session.date);
+        const displayCourse = cleanCourseName(courseInfo?.name || session.course);
+        return `
+          <div class="session">
+            <div class="course-badge" style="background: ${courseInfo?.color || '#666'}">
+              ${displayCourse}
+            </div>
+            <div class="session-time">
+              ${dateObj.format('M.D(dd)')} ${session.startTime}~${session.endTime}
+            </div>
           </div>
-          <div class="session-time">
-            ${dateObj.format('M.D(ddd)')} ${session.startTime}~${session.endTime}
-          </div>
-        </div>
-      `;
-    }).join('');
-  
-  return `
-    <div class="popup">
-      <h3>${item.school}</h3>
-      <div class="addr">${item.addr}</div>
-      <div class="sessions">${sessionsHTML}</div>
-    </div>
-  `;
-}
+        `;
+      }).join('');
 
-// 마커 업데이트
-function updateMarkers() {
-  cluster.clearLayers();
-  
-  const filteredData = allData.filter(item => {
-    // 과정 필터
-    const hasCourse = item.courses.some(course => activeCourses.has(course));
-    if (!hasCourse) return false;
-    
-    // 날짜 필터
-    if (selectedDates.size > 0) {
-      const hasDate = item.sessions.some(session => selectedDates.has(session.date));
-      if (!hasDate) return false;
-    }
-    
-    return true;
-  });
-  
-  filteredData.forEach(item => {
-    const marker = L.marker([item.lat, item.lng], {
-      icon: createMarkerIcon(item.courses)
-    });
-    
-    marker.bindPopup(createPopupHTML(item));
-    cluster.addLayer(marker);
-  });
-  
-  // 통계 업데이트
-  updateStats(filteredData);
-  
-  // 지도 범위 조정
-  if (filteredData.length > 0) {
-    const bounds = filteredData.map(item => [item.lat, item.lng]);
-    map.fitBounds(bounds, { padding: [20, 20] });
-  }
-}
-
-// 통계 업데이트
-function updateStats(data) {
-  const schoolCount = data.length;
-  const sessionCount = data.reduce((sum, item) => {
-    return sum + item.sessions.filter(session => {
-      if (selectedDates.size > 0 && !selectedDates.has(session.date)) return false;
-      if (!activeCourses.has(session.course)) return false;
-      return true;
-    }).length;
-  }, 0);
-  
-  document.getElementById('schoolCount').textContent = schoolCount;
-  document.getElementById('sessionCount').textContent = sessionCount;
-}
-
-// 달력 생성
-function createCalendar() {
-  const container = document.getElementById('calendarContainer');
-  
-  // 연수가 있는 날짜들 추출
-  const trainingDates = new Set();
-  allData.forEach(item => {
-    item.sessions.forEach(session => {
-      trainingDates.add(session.date);
-    });
-  });
-  
-  // 월별로 그룹화
-  const monthGroups = {};
-  Array.from(trainingDates).forEach(date => {
-    const month = date.substring(0, 7); // YYYY-MM
-    if (!monthGroups[month]) monthGroups[month] = [];
-    monthGroups[month].push(date);
-  });
-  
-  container.innerHTML = '';
-  
-  Object.keys(monthGroups).sort().forEach(month => {
-    const monthDiv = document.createElement('div');
-    monthDiv.innerHTML = `
-      <div style="font-weight: 600; margin-bottom: 8px; color: #1d1d1f;">
-        ${dayjs(month).format('YYYY년 M월')}
+    return `
+      <div class="popup">
+        <h3>${item.school}</h3>
+        <div class="addr">${item.addr}</div>
+        <div class="sessions">${sessionsHTML}</div>
       </div>
     `;
-    
-    const datesDiv = document.createElement('div');
-    datesDiv.style.display = 'flex';
-    datesDiv.style.flexWrap = 'wrap';
-    datesDiv.style.gap = '4px';
-    datesDiv.style.marginBottom = '16px';
-    
-    monthGroups[month].sort().forEach(date => {
-      const btn = document.createElement('button');
-      btn.className = 'date-cell has-training';
-      btn.textContent = dayjs(date).format('D');
-      btn.title = dayjs(date).format('M월 D일 (ddd)');
-      
-      btn.addEventListener('click', () => {
-        if (selectedDates.has(date)) {
-          selectedDates.delete(date);
-          btn.classList.remove('selected');
+  }
+
+  // 통계 업데이트
+  function updateStats(data) {
+    const schoolCount = data.length;
+    const sessionCount = data.reduce((sum, item) => {
+      return sum + item.sessions.filter(session => {
+        if (selectedDates.size > 0 && !selectedDates.has(session.date)) return false;
+        if (!activeCourses.has(session.course)) return false;
+        return true;
+      }).length;
+    }, 0);
+
+    document.getElementById('schoolCount').textContent = schoolCount;
+    document.getElementById('sessionCount').textContent = sessionCount;
+  }
+
+  // 마커 업데이트
+  function updateMarkers() {
+    cluster.clearLayers();
+
+    const filteredData = allData.filter(item => {
+      // 과정 필터
+      const hasCourse = item.courses.some(course => activeCourses.has(course));
+      if (!hasCourse) return false;
+
+      // 날짜 필터
+      if (selectedDates.size > 0) {
+        const hasDate = item.sessions.some(session => selectedDates.has(session.date));
+        if (!hasDate) return false;
+      }
+      return true;
+    });
+
+    filteredData.forEach(item => {
+      const marker = L.marker([item.lat, item.lng], {
+        icon: createMarkerIcon(item.courses)
+      });
+      marker.bindPopup(createPopupHTML(item));
+      cluster.addLayer(marker);
+    });
+
+    // 통계
+    updateStats(filteredData);
+
+    // 지도 범위 조정
+    if (filteredData.length === 1) {
+      const { lat, lng } = filteredData[0];
+      map.setView([lat, lng], MAX_FIT_ZOOM, { animate: true });
+    } else if (filteredData.length > 1) {
+      const bounds = filteredData.map(item => [item.lat, item.lng]);
+      map.fitBounds(bounds, { padding: [20, 20], maxZoom: MAX_FIT_ZOOM });
+    } else {
+      map.setView(SEOUL_CENTER, 12, { animate: true });
+    }
+  }
+
+  // 달력 생성 (접근성/피드백 포함)
+  function createCalendar() {
+    const container = document.getElementById('calendarContainer');
+
+    // 연수 날짜 수집
+    const trainingDates = new Set();
+    allData.forEach(item => {
+      item.sessions.forEach(session => trainingDates.add(session.date));
+    });
+
+    // 월별 그룹화
+    const monthGroups = {};
+    Array.from(trainingDates).forEach(date => {
+      const month = date.substring(0, 7); // YYYY-MM
+      if (!monthGroups[month]) monthGroups[month] = [];
+      monthGroups[month].push(date);
+    });
+
+    container.innerHTML = '';
+
+    Object.keys(monthGroups).sort().forEach(month => {
+      const monthDiv = document.createElement('div');
+      monthDiv.innerHTML = `
+        <div style="font-weight: 600; margin-bottom: 8px; color: #1d1d1f;">
+          ${dayjs(month).format('YYYY년 M월')}
+        </div>
+      `;
+
+      const datesDiv = document.createElement('div');
+      datesDiv.style.display = 'flex';
+      datesDiv.style.flexWrap = 'wrap';
+      datesDiv.style.gap = '4px';
+      datesDiv.style.marginBottom = '16px';
+
+      monthGroups[month].sort().forEach(date => {
+        const btn = document.createElement('button');
+        btn.className = 'date-cell has-training';
+        btn.type = 'button';
+        btn.setAttribute('aria-pressed', 'false');
+        btn.textContent = dayjs(date).format('D');
+        btn.title = dayjs(date).format('M월 D일 (ddd)');
+
+        function toggleDate() {
+          const wasSelected = selectedDates.has(date);
+          if (wasSelected) {
+            selectedDates.delete(date);
+            btn.classList.remove('selected');
+            btn.setAttribute('aria-pressed', 'false');
+          } else {
+            selectedDates.add(date);
+            btn.classList.add('selected');
+            btn.setAttribute('aria-pressed', 'true');
+          }
+          updateMarkers();
+        }
+
+        btn.addEventListener('click', toggleDate);
+        btn.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleDate();
+          }
+        });
+
+        datesDiv.appendChild(btn);
+      });
+
+      monthDiv.appendChild(datesDiv);
+      container.appendChild(monthDiv);
+    });
+
+    // 전체 선택/해제 컨트롤
+    const controlsDiv = document.createElement('div');
+    controlsDiv.style.display = 'flex';
+    controlsDiv.style.gap = '8px';
+    controlsDiv.style.marginTop = '12px';
+
+    const selectAllBtn = document.createElement('button');
+    selectAllBtn.textContent = '전체 선택';
+    selectAllBtn.type = 'button';
+    selectAllBtn.style.flex = '1';
+    selectAllBtn.style.padding = '8px';
+    selectAllBtn.style.border = '1px solid #007aff';
+    selectAllBtn.style.background = 'transparent';
+    selectAllBtn.style.color = '#007aff';
+    selectAllBtn.style.borderRadius = '8px';
+    selectAllBtn.style.cursor = 'pointer';
+    selectAllBtn.style.fontSize = '13px';
+
+    const clearAllBtn = document.createElement('button');
+    clearAllBtn.textContent = '전체 해제';
+    clearAllBtn.type = 'button';
+    clearAllBtn.style.flex = '1';
+    clearAllBtn.style.padding = '8px';
+    clearAllBtn.style.border = '1px solid #ff3b30';
+    clearAllBtn.style.background = 'transparent';
+    clearAllBtn.style.color = '#ff3b30';
+    clearAllBtn.style.borderRadius = '8px';
+    clearAllBtn.style.cursor = 'pointer';
+    clearAllBtn.style.fontSize = '13px';
+
+    controlsDiv.appendChild(selectAllBtn);
+    controlsDiv.appendChild(clearAllBtn);
+    container.appendChild(controlsDiv);
+
+    // 화면낭독용 라이브 영역
+    let live = document.getElementById('calendarLiveRegion');
+    if (!live) {
+      live = document.createElement('div');
+      live.id = 'calendarLiveRegion';
+      live.setAttribute('aria-live', 'polite');
+      live.style.position = 'absolute';
+      live.style.left = '-9999px';
+      document.body.appendChild(live);
+    }
+
+    selectAllBtn.addEventListener('click', () => {
+      trainingDates.forEach(date => selectedDates.add(date));
+      container.querySelectorAll('.date-cell.has-training').forEach(btn => {
+        btn.classList.add('selected');
+        btn.setAttribute('aria-pressed', 'true');
+      });
+      updateMarkers();
+      live.textContent = '모든 날짜가 선택되었습니다.';
+    });
+
+    clearAllBtn.addEventListener('click', () => {
+      selectedDates.clear();
+      container.querySelectorAll('.date-cell.has-training').forEach(btn => {
+        btn.classList.remove('selected');
+        btn.setAttribute('aria-pressed', 'false');
+      });
+      updateMarkers();
+      live.textContent = '모든 날짜 선택이 해제되었습니다.';
+    });
+  }
+
+  // 과정 필터 생성 (접근성 포함)
+  function createCourseFilters() {
+    const container = document.getElementById('courseFilters');
+    container.innerHTML = '';
+
+    Object.entries(COURSES).forEach(([courseKey, courseInfo]) => {
+      const filterDiv = document.createElement('div');
+      filterDiv.className = 'course-filter active';
+      filterDiv.setAttribute('role', 'button');
+      filterDiv.setAttribute('tabindex', '0');
+      filterDiv.setAttribute('aria-pressed', 'true');
+      filterDiv.innerHTML = `
+        <div class="course-dot" style="background: ${courseInfo.color}"></div>
+        <div class="course-name">${courseInfo.name}</div>
+        <div class="course-toggle"></div>
+      `;
+
+      function toggleCourse() {
+        if (activeCourses.has(courseKey)) {
+          activeCourses.delete(courseKey);
+          filterDiv.classList.remove('active');
+          filterDiv.setAttribute('aria-pressed', 'false');
         } else {
-          selectedDates.add(date);
-          btn.classList.add('selected');
+          activeCourses.add(courseKey);
+          filterDiv.classList.add('active');
+          filterDiv.setAttribute('aria-pressed', 'true');
         }
         updateMarkers();
-      });
-      
-      datesDiv.appendChild(btn);
-    });
-    
-    monthDiv.appendChild(datesDiv);
-    container.appendChild(monthDiv);
-  });
-  
-  // 전체 선택/해제 버튼
-  const controlsDiv = document.createElement('div');
-  controlsDiv.style.display = 'flex';
-  controlsDiv.style.gap = '8px';
-  controlsDiv.style.marginTop = '12px';
-  
-  const selectAllBtn = document.createElement('button');
-  selectAllBtn.textContent = '전체 선택';
-  selectAllBtn.style.flex = '1';
-  selectAllBtn.style.padding = '8px';
-  selectAllBtn.style.border = '1px solid #007aff';
-  selectAllBtn.style.background = 'transparent';
-  selectAllBtn.style.color = '#007aff';
-  selectAllBtn.style.borderRadius = '8px';
-  selectAllBtn.style.cursor = 'pointer';
-  selectAllBtn.style.fontSize = '13px';
-  
-  selectAllBtn.addEventListener('click', () => {
-    trainingDates.forEach(date => selectedDates.add(date));
-    container.querySelectorAll('.date-cell.has-training').forEach(btn => {
-      btn.classList.add('selected');
-    });
-    updateMarkers();
-  });
-  
-  const clearAllBtn = document.createElement('button');
-  clearAllBtn.textContent = '전체 해제';
-  clearAllBtn.style.flex = '1';
-  clearAllBtn.style.padding = '8px';
-  clearAllBtn.style.border = '1px solid #ff3b30';
-  clearAllBtn.style.background = 'transparent';
-  clearAllBtn.style.color = '#ff3b30';
-  clearAllBtn.style.borderRadius = '8px';
-  clearAllBtn.style.cursor = 'pointer';
-  clearAllBtn.style.fontSize = '13px';
-  
-  clearAllBtn.addEventListener('click', () => {
-    selectedDates.clear();
-    container.querySelectorAll('.date-cell.has-training').forEach(btn => {
-      btn.classList.remove('selected');
-    });
-    updateMarkers();
-  });
-  
-  controlsDiv.appendChild(selectAllBtn);
-  controlsDiv.appendChild(clearAllBtn);
-  container.appendChild(controlsDiv);
-}
-
-// 과정 필터 생성
-function createCourseFilters() {
-  const container = document.getElementById('courseFilters');
-  container.innerHTML = '';
-  
-  Object.entries(COURSES).forEach(([courseKey, courseInfo]) => {
-    const filterDiv = document.createElement('div');
-    filterDiv.className = 'course-filter active';
-    filterDiv.innerHTML = `
-      <div class="course-dot" style="background: ${courseInfo.color}"></div>
-      <div class="course-name">${courseInfo.name}</div>
-      <div class="course-toggle"></div>
-    `;
-    
-    filterDiv.addEventListener('click', () => {
-      if (activeCourses.has(courseKey)) {
-        activeCourses.delete(courseKey);
-        filterDiv.classList.remove('active');
-      } else {
-        activeCourses.add(courseKey);
-        filterDiv.classList.add('active');
       }
-      updateMarkers();
+
+      filterDiv.addEventListener('click', toggleCourse);
+      filterDiv.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggleCourse();
+        }
+      });
+
+      container.appendChild(filterDiv);
     });
-    
-    container.appendChild(filterDiv);
-  });
-}
+  }
 
-// 초기화
-function init() {
-  allData = buildDataset();
-  initMap();
-  createCalendar();
-  createCourseFilters();
-  updateMarkers();
-}
+  // 초기화
+  function init() {
+    allData = buildDataset();
+    initMap();
+    createCalendar();
+    createCourseFilters();
+    updateMarkers();
 
-// 페이지 로드 후 초기화
-document.addEventListener('DOMContentLoaded', init);
-</script>
+    // 초기 전체 범위 한 번 맞춤
+    if (allData.length > 0) {
+      const boundsAll = allData.map(item => [item.lat, item.lng]);
+      map.fitBounds(boundsAll, { padding: [20, 20], maxZoom: MAX_FIT_ZOOM });
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+  </script>
 </body>
 </html>
