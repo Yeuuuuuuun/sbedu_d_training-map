@@ -5,17 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>연수 지도 — 서대문·마포·은평</title>
 
-  <!-- 카카오 JS 키를 배포시 주입하기 위한 플레이스홀더 -->
-  <meta name="kakao-appkey" content="__KAKAO_JS_KEY__" />
-
   <!-- dayjs -->
   <script src="https://unpkg.com/dayjs@1.11.10/dayjs.min.js"></script>
   <script src="https://unpkg.com/dayjs@1.11.10/plugin/customParseFormat.js"></script>
   <script src="https://unpkg.com/dayjs@1.11.10/locale/ko.js"></script>
-<script>
-  dayjs.extend(window.dayjs_plugin_customParseFormat);
-  dayjs.locale('ko');
-</script>
+  <script>
+    dayjs.extend(window.dayjs_plugin_customParseFormat);
+    dayjs.locale('ko');
+  </script>
+
+  <!-- Kakao Maps SDK (GitHub Actions가 __KAKAO_JS_KEY__ 를 실제 키로 치환) -->
+  <!-- autoload=false 로 두고, 아래에서 kakao.maps.load(...)로 초기화합니다 -->
+  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=__KAKAO_JS_KEY__&libraries=services,clusterer&autoload=false"></script>
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f8f9fa; }
@@ -54,8 +56,6 @@
     .stat-number { font-size: 24px; font-weight: 700; color: #007aff; margin-bottom: 4px; }
     .stat-label { font-size: 13px; color: #86868b; font-weight: 500; }
     #map { height: 100%; width: 100%; }
-    .marker { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      font-size: 10px; font-weight: 700; color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.2); border: 2px solid white; }
     .popup { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
     .popup h3 { margin: 0 0 8px; font-size: 16px; font-weight: 600; color: #1d1d1f; }
     .popup .addr { color: #86868b; font-size: 13px; margin-bottom: 12px; }
@@ -69,8 +69,6 @@
       .title { font-size: 24px; }
     }
   </style>
-<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=__KAKAO_JS_KEY__&libraries=services,clusterer"></script>
-
 </head>
 <body>
   <div class="app">
@@ -105,14 +103,11 @@
 
       <div id="appError" style="margin-top:16px; color:#ef4444; font-weight:600;"></div>
     </div>
+    <!-- 지도는 우측 칼럼 하나만 사용합니다 (ID 중복 금지) -->
     <div id="map"></div>
   </div>
 
 <script>
-/* ---------- dayjs 설정 ---------- */
-dayjs.extend(dayjs_plugin_customParseFormat);
-dayjs.locale('ko');
-
 /* ---------- 데이터 ---------- */
 const RAW = [
   ["S1","염리초","9.15.","14:30","16:10","①에듀테크 주토피아","서울 마포구 토정로37길 37"],
@@ -173,7 +168,6 @@ const COURSES = {
 };
 
 const SEOUL_CENTER = [37.5665, 126.9780];
-const MAX_FIT_ZOOM = 4; // 카카오맵 level(숫자 작을수록 확대)
 
 /* ---------- 유틸 ---------- */
 function parseDate(dateStr) {
@@ -181,11 +175,9 @@ function parseDate(dateStr) {
   const [month, day] = cleaned.split('.').filter(Boolean);
   return `2025-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
-
 function cleanCourseName(name) {
   return String(name).replace(/^[^\w가-힣]+/, '');
 }
-
 function buildDataset() {
   const schoolMap = new Map();
   RAW.forEach(row => {
@@ -198,7 +190,7 @@ function buildDataset() {
     if (!schoolMap.has(key)) {
       schoolMap.set(key, {
         id: key, school, addr,
-        lat: SEOUL_CENTER[0], lng: SEOUL_CENTER[1], // 처음엔 임시센터, 지오코딩으로 보정
+        lat: SEOUL_CENTER[0], lng: SEOUL_CENTER[1], // 지오코딩으로 보정 예정
         sessions: [], courses: new Set()
       });
     }
@@ -211,10 +203,8 @@ function buildDataset() {
     });
     item.courses.add(course);
   });
-
   return Array.from(schoolMap.values()).map(v => ({ ...v, courses: Array.from(v.courses) }));
 }
-
 function createPopupHTML(item) {
   const sessionsHTML = item.sessions
     .sort((a,b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))
@@ -236,7 +226,6 @@ function createPopupHTML(item) {
     </div>
   `;
 }
-
 function svgDotDataUrl(color, labelText = '') {
   const svg = `
   <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28">
@@ -252,32 +241,7 @@ let allData = [];
 let selectedDates = new Set();
 let activeCourses = new Set(Object.keys(COURSES));
 
-/* ---------- 카카오맵 로드 & 초기화 ---------- */
-function loadKakaoAndInit() {
-  const meta = document.querySelector('meta[name="kakao-appkey"]');
-  const appkey = (meta && meta.content) || '';
-  if (!appkey || appkey === '__KAKAO_JS_KEY__') {
-    document.getElementById('appError').textContent =
-      '카카오 JavaScript 키가 주입되지 않았습니다. GitHub Actions 시크릿 설정을 확인하세요.';
-    console.error('Kakao appkey missing. Make sure GH Action replaces __KAKAO_JS_KEY__.');
-    return;
-  }
-
-  const url = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(appkey)}&libraries=services,clusterer&autoload=false`;
-  const s = document.createElement('script');
-  s.src = url;
-  s.onload = () => {
-    kakao.maps.load(async () => {
-      initMapKakao();
-      await initApp();
-    });
-  };
-  s.onerror = () => {
-    document.getElementById('appError').textContent = '카카오 지도 스크립트를 불러오지 못했습니다.';
-  };
-  document.head.appendChild(s);
-}
-
+/* ---------- Kakao 지도/지오코딩 ---------- */
 function initMapKakao() {
   _kakaoMap = new kakao.maps.Map(document.getElementById('map'), {
     center: new kakao.maps.LatLng(SEOUL_CENTER[0], SEOUL_CENTER[1]),
@@ -288,17 +252,13 @@ function initMapKakao() {
   });
   _geocoder = new kakao.maps.services.Geocoder();
 }
-
-/* ---------- 지오코딩 캐시 ---------- */
 const GEO_CACHE_PREFIX = 'kakao::geocode::';
 function getGeoCache(addr) {
-  try { const raw = localStorage.getItem(GEO_CACHE_PREFIX + addr); return raw ? JSON.parse(raw) : null; }
-  catch { return null; }
+  try { const raw = localStorage.getItem(GEO_CACHE_PREFIX + addr); return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
 function setGeoCache(addr, lat, lng) {
   try { localStorage.setItem(GEO_CACHE_PREFIX + addr, JSON.stringify({lat,lng})); } catch {}
 }
-
 function geocodeAddress(addr) {
   return new Promise((resolve) => {
     const cached = getGeoCache(addr);
@@ -312,36 +272,28 @@ function geocodeAddress(addr) {
     });
   });
 }
-
 async function fixAllCoords(list) {
   for (const item of list) {
     const r = await geocodeAddress(item.addr);
     if (r) { item.lat = r.lat; item.lng = r.lng; }
-    // 살짝 딜레이(과도한 동시요청 방지)
-    await new Promise(r => setTimeout(r, 60));
+    await new Promise(r => setTimeout(r, 60)); // 과도한 병렬요청 방지
   }
 }
 
-/* ---------- UI 생성 ---------- */
+/* ---------- UI: 달력/과정 필터 ---------- */
 function createCalendar() {
   const container = document.getElementById('calendarContainer');
   const allDates = new Set();
   allData.forEach(i => i.sessions.forEach(s => allDates.add(s.date)));
-
-  // YYYY-MM → [dates...]
   const monthGroups = {};
-  Array.from(allDates).forEach(d => {
-    const m = d.substring(0,7);
-    (monthGroups[m] ||= []).push(d);
-  });
+  Array.from(allDates).forEach(d => (monthGroups[d.substring(0,7)] ||= []).push(d));
 
   container.innerHTML = '';
   Object.keys(monthGroups).sort().forEach(month => {
     const monthDiv = document.createElement('div');
     monthDiv.innerHTML = `<div style="font-weight:600; margin-bottom:8px; color:#1d1d1f;">${dayjs(month).format('YYYY년 M월')}</div>`;
     const datesDiv = document.createElement('div');
-    datesDiv.style.display='flex'; datesDiv.style.flexWrap='wrap'; datesDiv.style.gap='4px'; datesDiv.style.marginBottom='16px';
-
+    Object.assign(datesDiv.style, {display:'flex', flexWrap:'wrap', gap:'4px', marginBottom:'16px'});
     monthGroups[month].sort().forEach(date => {
       const btn = document.createElement('button');
       btn.className = 'date-cell has-training';
@@ -349,7 +301,6 @@ function createCalendar() {
       btn.setAttribute('aria-pressed','false');
       btn.textContent = dayjs(date).format('D');
       btn.title = dayjs(date).format('M월 D일 (ddd)');
-
       const toggle = () => {
         const on = selectedDates.has(date);
         if (on) { selectedDates.delete(date); btn.classList.remove('selected'); btn.setAttribute('aria-pressed','false'); }
@@ -358,24 +309,20 @@ function createCalendar() {
       };
       btn.addEventListener('click', toggle);
       btn.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); toggle(); } });
-
       datesDiv.appendChild(btn);
     });
-
     monthDiv.appendChild(datesDiv);
     container.appendChild(monthDiv);
   });
 
-  // 전체 선택/해제
   const controlsDiv = document.createElement('div');
-  controlsDiv.style.display='flex'; controlsDiv.style.gap='8px'; controlsDiv.style.marginTop='12px';
+  Object.assign(controlsDiv.style, {display:'flex', gap:'8px', marginTop:'12px'});
   const selectAllBtn = document.createElement('button');
-  selectAllBtn.textContent='전체 선택'; selectAllBtn.type='button';
+  selectAllBtn.textContent = '전체 선택'; selectAllBtn.type='button';
   Object.assign(selectAllBtn.style,{flex:'1',padding:'8px',border:'1px solid #007aff',background:'transparent',color:'#007aff',borderRadius:'8px',cursor:'pointer',fontSize:'13px'});
   const clearAllBtn = document.createElement('button');
-  clearAllBtn.textContent='전체 해제'; clearAllBtn.type='button';
+  clearAllBtn.textContent = '전체 해제'; clearAllBtn.type='button';
   Object.assign(clearAllBtn.style,{flex:'1',padding:'8px',border:'1px solid #ff3b30',background:'transparent',color:'#ff3b30',borderRadius:'8px',cursor:'pointer',fontSize:'13px'});
-
   const trainingDates = new Set(allDates);
   selectAllBtn.addEventListener('click', () => {
     trainingDates.forEach(d => selectedDates.add(d));
@@ -387,12 +334,10 @@ function createCalendar() {
     container.querySelectorAll('.date-cell.has-training').forEach(b => b.classList.remove('selected'));
     updateMarkers();
   });
-
   controlsDiv.appendChild(selectAllBtn);
   controlsDiv.appendChild(clearAllBtn);
   container.appendChild(controlsDiv);
 }
-
 function createCourseFilters() {
   const container = document.getElementById('courseFilters');
   container.innerHTML='';
@@ -431,26 +376,21 @@ function createKakaoMarker(item) {
   const more = item.courses.length - list.length;
   const color1 = (COURSES[list[0]]?.color) || '#666';
   const label = more > 0 ? `+${more}` : '';
-
   const image = new kakao.maps.MarkerImage(
     svgDotDataUrl(color1, label),
     new kakao.maps.Size(28, 28),
     { offset: new kakao.maps.Point(14, 14) }
   );
-
   const marker = new kakao.maps.Marker({
     position: new kakao.maps.LatLng(item.lat, item.lng),
     image
   });
-
   const infowindow = new kakao.maps.InfoWindow({
     content: `<div style="padding:10px 12px; max-width:260px;">${createPopupHTML(item)}</div>`
   });
-
   kakao.maps.event.addListener(marker, 'click', () => infowindow.open(_kakaoMap, marker));
   return marker;
 }
-
 function updateMarkers() {
   const filtered = allData.filter(item => {
     const hasCourse = item.courses.some(c => activeCourses.has(c));
@@ -461,11 +401,9 @@ function updateMarkers() {
     }
     return true;
   });
-
   _clusterer.clear();
   const markers = filtered.map(createKakaoMarker);
   _clusterer.addMarkers(markers);
-
   updateStats(filtered);
 
   if (filtered.length === 1) {
@@ -482,7 +420,6 @@ function updateMarkers() {
     _kakaoMap.setLevel(6);
   }
 }
-
 function updateStats(data) {
   const schoolCount = data.length;
   const sessionCount = data.reduce((sum, item) => {
@@ -492,7 +429,6 @@ function updateStats(data) {
       return true;
     }).length;
   }, 0);
-
   document.getElementById('schoolCount').textContent = schoolCount;
   document.getElementById('sessionCount').textContent = sessionCount;
 }
@@ -507,18 +443,17 @@ async function initApp() {
 }
 
 /* ---------- 시작 ---------- */
-document.addEventListener('DOMContentLoaded', loadKakaoAndInit);
-</script>
-<div id="map" style="height:100vh;"></div>
-
-<script>
-  kakao.maps.load(function () {
-    const map = new kakao.maps.Map(
-      document.getElementById('map'),
-      { center: new kakao.maps.LatLng(37.5665, 126.9780), level: 7 }
-    );
+document.addEventListener('DOMContentLoaded', () => {
+  if (!(window.kakao && kakao.maps)) {
+    document.getElementById('appError').textContent =
+      '카카오 지도 스크립트를 불러오지 못했습니다. (키 치환/GitHub Actions 설정을 확인하세요)';
+    return;
+  }
+  kakao.maps.load(async () => {
+    initMapKakao();
+    await initApp();
   });
+});
 </script>
-
 </body>
 </html>
