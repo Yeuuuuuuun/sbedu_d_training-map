@@ -3,22 +3,32 @@ name: Deploy Kakao Map to Pages
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
+    # ✅ Pages 배포에 필요한 환경 지정
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 플레이스홀더(__KAKAO_JS_KEY__)를 시크릿 값으로 치환
       - name: Inject Kakao JS Key
-        run: |
-          sed -i "s/__KAKAO_JS_KEY__/${KAKAO_JS_KEY}/g" index.html
+        run: sed -i "s/__KAKAO_JS_KEY__/${KAKAO_JS_KEY}/g" index.html
         env:
           KAKAO_JS_KEY: ${{ secrets.KAKAO_JS_KEY }}
 
@@ -28,7 +38,9 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: .  # 필요하면 경로 조정
 
+      # ✅ 이 step에 id를 부여해야 위의 environment.url이 동작합니다
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
