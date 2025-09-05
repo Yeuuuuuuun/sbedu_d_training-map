@@ -32,15 +32,97 @@
     .section { margin-bottom: 32px; }
     .section-title { font-size: 17px; font-weight: 600; color: #1d1d1f; margin-bottom: 16px; }
 
-    /* 날짜 선택 */
-    .date-selector { background: white; border-radius: 12px; padding: 16px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.06); }
-    .date-cell { aspect-ratio: 1; border: none; background: transparent; border-radius: 8px;
-      font-size: 14px; font-weight: 500; cursor: pointer; transition: all .2s ease; color: #1d1d1f; }
-    .date-cell:hover { background: #f5f5f7; }
-    .date-cell.selected { background: #007aff; color: #fff; }
-    .date-cell.has-training { background: #34c759; color: #fff; font-weight: 600; }
-    .date-cell.has-training.selected { background: #007aff; box-shadow: 0 0 0 2px #34c759; }
+    /* 날짜 선택 - 테이블 형태 */
+    .date-selector { 
+      background: white; border-radius: 16px; padding: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.04); 
+    }
+    
+    .month-header { 
+      font-size: 18px; font-weight: 700; color: #1d1d1f; margin-bottom: 16px; 
+      text-align: center; padding: 12px 0; 
+      background: #f8f9fa; border-radius: 8px;
+    }
+    
+    .calendar-table {
+      width: 100%; border-collapse: separate; border-spacing: 2px;
+      margin-bottom: 20px;
+    }
+    
+    .weekday-header {
+      font-size: 12px; font-weight: 600; color: #86868b; 
+      text-align: center; padding: 10px 4px; text-transform: uppercase;
+      letter-spacing: 0.5px; background: #f8f9fa;
+      border-radius: 4px;
+    }
+    
+    .date-cell { 
+      width: 100%; height: 40px; border: 1px solid #e5e5ea; 
+      background: white; border-radius: 4px;
+      font-size: 14px; font-weight: 500; cursor: pointer; 
+      transition: all .2s ease; color: #1d1d1f;
+      text-align: center;
+    }
+    
+    .date-cell:disabled { 
+      color: #d1d1d6; cursor: not-allowed; 
+      background: #f8f9fa; border-color: #f0f0f0;
+    }
+    
+    .date-cell:not(:disabled):hover { 
+      background: #f0f0f0; border-color: #007aff;
+    }
+    
+    .date-cell.selected { 
+      background: #007aff; color: white; border-color: #007aff;
+      font-weight: 600;
+    }
+    
+    .date-cell.has-training { 
+      background: #e8f4fd; color: #007aff; font-weight: 600; 
+      border-color: #007aff; position: relative;
+    }
+    
+    .date-cell.has-training::after {
+      content: '●';
+      position: absolute;
+      top: 2px; right: 4px;
+      font-size: 8px; color: #007aff;
+    }
+    
+    .date-cell.has-training.selected { 
+      background: #007aff; color: white; border-color: #0056b3;
+    }
+    
+    .date-cell.has-training.selected::after {
+      color: white;
+    }
+    
+    .calendar-controls {
+      display: flex; gap: 10px; padding-top: 16px; 
+      border-top: 1px solid #e5e5ea;
+    }
+    
+    .calendar-btn {
+      flex: 1; padding: 12px 16px; border-radius: 8px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: all .2s ease; border: 1px solid;
+    }
+    
+    .calendar-btn.select-all {
+      background: white; color: #007aff; border-color: #007aff;
+    }
+    
+    .calendar-btn.select-all:hover {
+      background: #007aff; color: white;
+    }
+    
+    .calendar-btn.clear-all {
+      background: white; color: #ff3b30; border-color: #ff3b30;
+    }
+    
+    .calendar-btn.clear-all:hover {
+      background: #ff3b30; color: white;
+    }
 
     /* 과정 필터 */
     .course-filters { display: grid; gap: 8px; }
@@ -233,15 +315,15 @@
   function initGoogleMaps() {
     console.log('Google Maps API 로드 완료');
     
-    // 지도 초기화
+    // 지도 초기화 (휠 줌 활성화)
     _googleMap = new google.maps.Map(document.getElementById('map'), {
       center: SEOUL_CENTER,
       zoom: 11,
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: false,
-      scrollwheel: true,  // 마우스 휠 줌 활성화
-      gestureHandling: 'greedy'  // 모든 제스처 허용 (Ctrl 없이도 줌 가능)
+      scrollwheel: true,
+      gestureHandling: 'greedy'
     });
     
     _geocoder = new google.maps.Geocoder();
@@ -334,7 +416,7 @@
     }
   }
 
-  // UI 생성
+  // UI 생성 - 테이블 형태 달력
   function createCalendar() {
     const container = document.getElementById('calendarContainer');
     const allDates = new Set();
@@ -486,17 +568,18 @@
     });
   }
 
-  // 마커 관리
+  // 마커 관리 - 라벨 기능 포함
   function createGoogleMarker(item) {
     const primaryColor = COURSES[item.courses[0]]?.color || '#666';
     
+    // 더 큰 마커
     const svgMarker = {
       path: 'M12,2C8.13,2 5,5.13 5,9c0,5.25 7,13 7,13s7,-7.75 7,-13C19,5.13 15.87,2 12,2z',
       fillColor: primaryColor,
       fillOpacity: 1,
-      strokeWeight: 2,
+      strokeWeight: 3,
       strokeColor: '#ffffff',
-      scale: 1.5
+      scale: 2.2
     };
 
     const marker = new google.maps.Marker({
@@ -506,15 +589,43 @@
       title: item.school
     });
 
+    // 기본 학교 이름 라벨
+    const label = new google.maps.InfoWindow({
+      content: `<div style="font-weight: 600; color: #1d1d1f; font-size: 14px; padding: 4px 8px; background: rgba(255,255,255,0.95); border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border: none;">${item.school}</div>`,
+      disableAutoPan: true,
+      pixelOffset: new google.maps.Size(0, -60)
+    });
+
+    // 상세 정보창
     const infoWindow = new google.maps.InfoWindow({
       content: createInfoWindowContent(item)
     });
 
+    // 기본적으로 라벨 표시
+    label.open(_googleMap, marker);
+
+    // 클릭 시 라벨 숨기고 상세 정보 표시
     marker.addListener('click', () => {
+      // 다른 정보창들 닫기
       if (activeInfoWindow) activeInfoWindow.close();
+      
+      // 라벨 숨기기
+      label.close();
+      
+      // 상세 정보창 열기
       infoWindow.open(_googleMap, marker);
       activeInfoWindow = infoWindow;
     });
+
+    // 상세 정보창이 닫히면 라벨 다시 표시
+    infoWindow.addListener('closeclick', () => {
+      label.open(_googleMap, marker);
+      activeInfoWindow = null;
+    });
+
+    // 마커 객체에 라벨과 정보창 참조 저장
+    marker.label = label;
+    marker.infoWindow = infoWindow;
 
     return marker;
   }
