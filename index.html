@@ -568,7 +568,7 @@
     });
   }
 
-  // 마커 관리 - 라벨 기능 포함
+  // 마커 관리 - 라벨 기능 제거
   function createGoogleMarker(item) {
     const primaryColor = COURSES[item.courses[0]]?.color || '#666';
     
@@ -589,42 +589,27 @@
       title: item.school
     });
 
-    // 기본 학교 이름 라벨
-    const label = new google.maps.InfoWindow({
-      content: `<div style="font-weight: 600; color: #1d1d1f; font-size: 14px; padding: 4px 8px; background: rgba(255,255,255,0.95); border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border: none;">${item.school}</div>`,
-      disableAutoPan: true,
-      pixelOffset: new google.maps.Size(0, -60)
-    });
-
     // 상세 정보창
     const infoWindow = new google.maps.InfoWindow({
       content: createInfoWindowContent(item)
     });
 
-    // 기본적으로 라벨 표시
-    label.open(_googleMap, marker);
-
-    // 클릭 시 라벨 숨기고 상세 정보 표시
+    // 클릭 시 상세 정보 표시
     marker.addListener('click', () => {
       // 다른 정보창들 닫기
       if (activeInfoWindow) activeInfoWindow.close();
-      
-      // 라벨 숨기기
-      label.close();
       
       // 상세 정보창 열기
       infoWindow.open(_googleMap, marker);
       activeInfoWindow = infoWindow;
     });
 
-    // 상세 정보창이 닫히면 라벨 다시 표시
+    // 정보창이 닫히면 activeInfoWindow 초기화
     infoWindow.addListener('closeclick', () => {
-      label.open(_googleMap, marker);
       activeInfoWindow = null;
     });
 
-    // 마커 객체에 라벨과 정보창 참조 저장
-    marker.label = label;
+    // 마커 객체에 정보창 참조 저장
     marker.infoWindow = infoWindow;
 
     return marker;
