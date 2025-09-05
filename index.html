@@ -562,38 +562,31 @@
     updateMarkers();
   }
 
-  /* =========================
-     Google Maps SDK 로더
-  ========================== */
-  function loadGoogleMapsAndInit() {
-    const meta = document.querySelector('meta[name="google-maps-key"]');
-    const apiKey = meta && meta.content;
-    const err = document.getElementById('appError');
+/* =========================
+   앱 시작
+========================== */
+function checkAndInitApp() {
+  const meta = document.querySelector('meta[name="google-maps-key"]');
+  const apiKey = meta && meta.content;
+  const err = document.getElementById('appError');
 
-    if (!apiKey || apiKey === '__GOOGLE_MAPS_KEY__') {
-      err.textContent = 'Google Maps API 키가 주입되지 않았습니다. (GitHub Actions 시크릿/워크플로 확인)';
-      return;
-    }
-
-    // Google Maps API 동적 로드
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=geometry&callback=initGoogleMaps`;
-    script.async = true;
-    script.defer = true;
-    script.onerror = () => {
-      err.textContent = 'Google Maps API를 불러오지 못했습니다.';
-    };
-
-    // 전역 콜백 함수 설정
-    window.initGoogleMaps = () => {
-      initMapGoogle();
-      initApp();
-    };
-
-    document.head.appendChild(script);
+  if (!apiKey || apiKey === '__GOOGLE_MAPS_KEY__') {
+    err.textContent = 'Google Maps API 키가 주입되지 않았습니다.';
+    return;
   }
 
-  document.addEventListener('DOMContentLoaded', loadGoogleMapsAndInit);
+  if (typeof google === 'undefined') {
+    err.textContent = 'Google Maps API를 불러오지 못했습니다.';
+    return;
+  }
+
+  initMapGoogle();
+  initApp();
+}
+
+window.initGoogleMaps = checkAndInitApp;
+document.addEventListener('DOMContentLoaded', checkAndInitApp);
+    
   </script>
 </body>
 </html>
