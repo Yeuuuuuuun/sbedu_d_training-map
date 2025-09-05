@@ -5,32 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>연수 지도 — 서대문·마포·은평</title>
 
-  <!-- GitHub Actions가 배포 시 이 값을 실제 키로 치환합니다 -->
-  <meta name="google-maps-key" content="__GOOGLE_MAPS_KEY__" />
-
-  <!-- Google Maps API -->
-  <script>
-    // API 키를 동적으로 삽입하여 Google Maps 로드
-    (function() {
-      const meta = document.querySelector('meta[name="google-maps-key"]');
-      const apiKey = meta ? meta.content : '';
-      if (apiKey && apiKey !== '__GOOGLE_MAPS_KEY__') {
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry&callback=initGoogleMaps`;
-        script.async = true;
-        document.head.appendChild(script);
-      }
-    })();
-  </script>
-
   <!-- dayjs -->
   <script src="https://unpkg.com/dayjs@1.11.10/dayjs.min.js"></script>
   <script src="https://unpkg.com/dayjs@1.11.10/plugin/customParseFormat.js"></script>
   <script src="https://unpkg.com/dayjs@1.11.10/locale/ko.js"></script>
   <script>
-    // dayjs 설정
     dayjs.extend(window.dayjs_plugin_customParseFormat);
     dayjs.locale('ko');
+  </script>
+
+  <!-- Google Maps API (정적 로드) -->
+  <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=__GOOGLE_MAPS_KEY__&libraries=geometry&callback=initGoogleMaps">
   </script>
 
   <style>
@@ -135,9 +121,15 @@
   </div>
 
   <script>
-  /* =========================
-     데이터/상수
-  ========================== */
+  // 전역 변수
+  let _googleMap, _geocoder;
+  let allData = [];
+  let selectedDates = new Set();
+  let activeCourses = new Set();
+  let markers = [];
+  let activeInfoWindow = null;
+
+  // 연수 데이터
   const RAW = [
     ["S1","염리초","9.15.","14:30","16:10","①에듀테크 주토피아","서울 마포구 토정로37길 37"],
     ["S2","홍제초","9.16.","14:30","16:10","②AI관람차","서울 서대문구 홍은중앙로 13"],
@@ -198,9 +190,7 @@
 
   const SEOUL_CENTER = { lat: 37.5665, lng: 126.9780 };
 
-  /* =========================
-     유틸/도우미
-  ========================== */
+  // 유틸리티 함수들
   function parseDate(dateStr) {
     const cleaned = String(dateStr).replace(/\s*/g, '');
     const [month, day] = cleaned.split('.').filter(Boolean);
@@ -217,13 +207,13 @@
       const [id, school, dateStr, startTime, endTime, course, addr] = row;
       const date = parseDate(dateStr);
       const startDateTime = dayjs(`${date} ${startTime}`, 'YYYY-MM-DD HH:mm');
-      const endDateTime   = dayjs(`${date} ${endTime}`, 'YYYY-MM-DD HH:mm');
+      const endDateTime = dayjs(`${date} ${endTime}`, 'YYYY-MM-DD HH:mm');
 
       const key = `${school}@@${addr}`;
       if (!schoolMap.has(key)) {
         schoolMap.set(key, {
           id: key, school, addr,
-          lat: SEOUL_CENTER.lat, lng: SEOUL_CENTER.lng, // 지오코딩으로 보정 예정
+          lat: SEOUL_CENTER.lat, lng: SEOUL_CENTER.lng,
           sessions: [], courses: new Set()
         });
       }
@@ -237,6 +227,25 @@
       item.courses.add(course);
     });
     return Array.from(schoolMap.values()).map(v => ({ ...v, courses: Array.from(v.courses) }));
+  }
+
+  // Google Maps 초기화 및 앱 시작
+  function initGoogleMaps() {
+    console.log('Google Maps API 로드 완료');
+    
+    // 지도 초기화
+    _googleMap = new google.maps.Map(document.getElementById('map'), {
+      center: SEOUL_CENTER,
+      zoom: 11,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false
+    });
+    
+    _geocoder = new google.maps.Geocoder();
+    
+    // 앱 시작
+    initApp();
   }
 
   function createInfoWindowContent(item) {
@@ -261,33 +270,22 @@
     `;
   }
 
-  /* =========================
-     전역 상태
-  ========================== */
-  let _googleMap, _geocoder;
-  let allData = [];
-  let selectedDates = new Set();
-  let activeCourses = new Set(Object.keys(COURSES));
-  let markers = [];
-  let activeInfoWindow = null;
-
-  /* =========================
-     Google Maps 초기화
-  ========================== */
-  function initMapGoogle() {
-    _googleMap = new google.maps.Map(document.getElementById('map'), {
-      center: SEOUL_CENTER,
-      zoom: 11,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false
-    });
-    _geocoder = new google.maps.Geocoder();
+  async function initApp() {
+    console.log('앱 초기화 시작');
+    
+    // 과정 필터 초기화
+    activeCourses = new Set(Object.keys(COURSES));
+    
+    allData = buildDataset();
+    await fixAllCoords(allData);
+    createCalendar();
+    createCourseFilters();
+    updateMarkers();
+    
+    console.log('앱 초기화 완료');
   }
 
-  /* =========================
-     지오코딩
-  ========================== */
+  // 지오코딩
   const GEO_CACHE_PREFIX = 'google::geocode::';
   function getGeoCache(addr) {
     try { 
@@ -330,13 +328,11 @@
         item.lat = r.lat; 
         item.lng = r.lng; 
       }
-      await new Promise(r => setTimeout(r, 100)); // API 제한 방지
+      await new Promise(r => setTimeout(r, 100));
     }
   }
 
-  /* =========================
-     UI: 달력/과정 필터
-  ========================== */
+  // UI 생성
   function createCalendar() {
     const container = document.getElementById('calendarContainer');
     const allDates = new Set();
@@ -354,28 +350,18 @@
         const btn = document.createElement('button');
         btn.className = 'date-cell has-training';
         btn.type = 'button';
-        btn.setAttribute('aria-pressed','false');
         btn.textContent = dayjs(date).format('D');
         btn.title = dayjs(date).format('M월 D일 (ddd)');
-        const toggle = () => {
+        btn.addEventListener('click', () => {
           const on = selectedDates.has(date);
-          if (on) { 
-            selectedDates.delete(date); 
-            btn.classList.remove('selected'); 
-            btn.setAttribute('aria-pressed','false'); 
-          } else { 
-            selectedDates.add(date); 
-            btn.classList.add('selected'); 
-            btn.setAttribute('aria-pressed','true'); 
+          if (on) {
+            selectedDates.delete(date);
+            btn.classList.remove('selected');
+          } else {
+            selectedDates.add(date);
+            btn.classList.add('selected');
           }
           updateMarkers();
-        };
-        btn.addEventListener('click', toggle);
-        btn.addEventListener('keydown', e => { 
-          if (e.key==='Enter'||e.key===' ') { 
-            e.preventDefault(); 
-            toggle(); 
-          } 
         });
         datesDiv.appendChild(btn);
       });
@@ -383,31 +369,28 @@
       container.appendChild(monthDiv);
     });
 
+    // 전체 선택/해제 버튼
     const controlsDiv = document.createElement('div');
     Object.assign(controlsDiv.style, {display:'flex', gap:'8px', marginTop:'12px'});
+    
     const selectAllBtn = document.createElement('button');
-    selectAllBtn.textContent = '전체 선택'; selectAllBtn.type='button';
+    selectAllBtn.textContent = '전체 선택';
     Object.assign(selectAllBtn.style,{flex:'1',padding:'8px',border:'1px solid #007aff',background:'transparent',color:'#007aff',borderRadius:'8px',cursor:'pointer',fontSize:'13px'});
-    const clearAllBtn = document.createElement('button');
-    clearAllBtn.textContent = '전체 해제'; clearAllBtn.type='button';
-    Object.assign(clearAllBtn.style,{flex:'1',padding:'8px',border:'1px solid #ff3b30',background:'transparent',color:'#ff3b30',borderRadius:'8px',cursor:'pointer',fontSize:'13px'});
-    const trainingDates = new Set(allDates);
     selectAllBtn.addEventListener('click', () => {
-      trainingDates.forEach(d => selectedDates.add(d));
-      container.querySelectorAll('.date-cell.has-training').forEach(b => {
-        b.classList.add('selected');
-        b.setAttribute('aria-pressed','true');
-      });
+      allDates.forEach(d => selectedDates.add(d));
+      container.querySelectorAll('.date-cell').forEach(b => b.classList.add('selected'));
       updateMarkers();
     });
+    
+    const clearAllBtn = document.createElement('button');
+    clearAllBtn.textContent = '전체 해제';
+    Object.assign(clearAllBtn.style,{flex:'1',padding:'8px',border:'1px solid #ff3b30',background:'transparent',color:'#ff3b30',borderRadius:'8px',cursor:'pointer',fontSize:'13px'});
     clearAllBtn.addEventListener('click', () => {
       selectedDates.clear();
-      container.querySelectorAll('.date-cell.has-training').forEach(b => {
-        b.classList.remove('selected');
-        b.setAttribute('aria-pressed','false');
-      });
+      container.querySelectorAll('.date-cell').forEach(b => b.classList.remove('selected'));
       updateMarkers();
     });
+    
     controlsDiv.appendChild(selectAllBtn);
     controlsDiv.appendChild(clearAllBtn);
     container.appendChild(controlsDiv);
@@ -415,49 +398,33 @@
 
   function createCourseFilters() {
     const container = document.getElementById('courseFilters');
-    container.innerHTML='';
+    container.innerHTML = '';
     Object.entries(COURSES).forEach(([key, info]) => {
       const filterDiv = document.createElement('div');
       filterDiv.className = 'course-filter active';
-      filterDiv.setAttribute('role','button');
-      filterDiv.setAttribute('tabindex','0');
-      filterDiv.setAttribute('aria-pressed','true');
       filterDiv.innerHTML = `
         <div class="course-dot" style="background:${info.color}"></div>
         <div class="course-name">${info.name}</div>
         <div class="course-toggle"></div>
       `;
-      const toggle = () => {
+      filterDiv.addEventListener('click', () => {
         if (activeCourses.has(key)) {
           activeCourses.delete(key);
           filterDiv.classList.remove('active');
-          filterDiv.setAttribute('aria-pressed','false');
         } else {
           activeCourses.add(key);
           filterDiv.classList.add('active');
-          filterDiv.setAttribute('aria-pressed','true');
         }
         updateMarkers();
-      };
-      filterDiv.addEventListener('click', toggle);
-      filterDiv.addEventListener('keydown', e => { 
-        if (e.key==='Enter'||e.key===' ') { 
-          e.preventDefault(); 
-          toggle(); 
-        } 
       });
       container.appendChild(filterDiv);
     });
   }
 
-  /* =========================
-     마커/통계 갱신
-  ========================== */
+  // 마커 관리
   function createGoogleMarker(item) {
-    const courseColors = item.courses.map(c => COURSES[c]?.color || '#666');
-    const primaryColor = courseColors[0] || '#666';
+    const primaryColor = COURSES[item.courses[0]]?.color || '#666';
     
-    // SVG 마커 생성
     const svgMarker = {
       path: 'M12,2C8.13,2 5,5.13 5,9c0,5.25 7,13 7,13s7,-7.75 7,-13C19,5.13 15.87,2 12,2z',
       fillColor: primaryColor,
@@ -479,9 +446,7 @@
     });
 
     marker.addListener('click', () => {
-      if (activeInfoWindow) {
-        activeInfoWindow.close();
-      }
+      if (activeInfoWindow) activeInfoWindow.close();
       infoWindow.open(_googleMap, marker);
       activeInfoWindow = infoWindow;
     });
@@ -493,7 +458,6 @@
     // 기존 마커 제거
     markers.forEach(marker => marker.setMap(null));
     markers = [];
-    
     if (activeInfoWindow) {
       activeInfoWindow.close();
       activeInfoWindow = null;
@@ -525,7 +489,6 @@
       });
       _googleMap.fitBounds(bounds);
       
-      // 최소 줌 레벨 설정
       google.maps.event.addListenerOnce(_googleMap, 'bounds_changed', () => {
         if (_googleMap.getZoom() > 15) {
           _googleMap.setZoom(15);
@@ -551,42 +514,18 @@
     document.getElementById('sessionCount').textContent = sessionCount;
   }
 
-  /* =========================
-     앱 초기화
-  ========================== */
-  async function initApp() {
-    allData = buildDataset();
-    await fixAllCoords(allData);   // 주소 → 위경도 보정
-    createCalendar();
-    createCourseFilters();
-    updateMarkers();
-  }
+  // 에러 처리
+  window.onerror = function(msg, url, line) {
+    console.error('JavaScript Error:', msg, 'at', url + ':' + line);
+    document.getElementById('appError').textContent = 'JavaScript 오류가 발생했습니다: ' + msg;
+  };
 
-/* =========================
-   앱 시작
-========================== */
-function checkAndInitApp() {
-  const meta = document.querySelector('meta[name="google-maps-key"]');
-  const apiKey = meta && meta.content;
-  const err = document.getElementById('appError');
+  // Google Maps API 로드 실패 처리
+  window.gm_authFailure = function() {
+    document.getElementById('appError').textContent = 'Google Maps API 키가 유효하지 않거나 권한이 없습니다.';
+  };
 
-  if (!apiKey || apiKey === '__GOOGLE_MAPS_KEY__') {
-    err.textContent = 'Google Maps API 키가 주입되지 않았습니다.';
-    return;
-  }
-
-  if (typeof google === 'undefined') {
-    err.textContent = 'Google Maps API를 불러오지 못했습니다.';
-    return;
-  }
-
-  initMapGoogle();
-  initApp();
-}
-
-window.initGoogleMaps = checkAndInitApp;
-document.addEventListener('DOMContentLoaded', checkAndInitApp);
-    
+  console.log('스크립트 로드 완료, Google Maps API 대기 중...');
   </script>
 </body>
 </html>
