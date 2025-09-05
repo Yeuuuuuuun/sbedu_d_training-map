@@ -6,7 +6,7 @@
   <title>연수 지도 — 서대문·마포·은평</title>
 
   <!-- GitHub Actions가 배포 시 이 값을 실제 키로 치환합니다 -->
-  <meta name="kakao-appkey" content="__KAKAO_JS_KEY__" />
+  <meta name="google-maps-key" content="__GOOGLE_MAPS_KEY__" />
 
   <!-- dayjs -->
   <script src="https://unpkg.com/dayjs@1.11.10/dayjs.min.js"></script>
@@ -66,13 +66,13 @@
     #map { height: 100%; width: 100%; }
 
     /* 팝업 */
-    .popup { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
-    .popup h3 { margin: 0 0 8px; font-size: 16px; font-weight: 600; color: #1d1d1f; }
-    .popup .addr { color: #86868b; font-size: 13px; margin-bottom: 12px; }
-    .popup .sessions { display: grid; gap: 8px; }
-    .popup .session { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f5f5f7; border-radius: 8px; }
-    .popup .course-badge { padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; color: #fff; }
-    .popup .session-time { font-size: 13px; color: #1d1d1f; }
+    .info-window { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 300px; }
+    .info-window h3 { margin: 0 0 8px; font-size: 16px; font-weight: 600; color: #1d1d1f; }
+    .info-window .addr { color: #86868b; font-size: 13px; margin-bottom: 12px; }
+    .info-window .sessions { display: grid; gap: 8px; }
+    .info-window .session { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f5f5f7; border-radius: 8px; }
+    .info-window .course-badge { padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; color: #fff; }
+    .info-window .session-time { font-size: 13px; color: #1d1d1f; }
 
     @media (max-width: 768px) {
       .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
@@ -181,7 +181,7 @@
     '⑦파라오의 학급경영': { name: '파라오의 학급경영', color: '#ff2d92' }
   };
 
-  const SEOUL_CENTER = [37.5665, 126.9780];
+  const SEOUL_CENTER = { lat: 37.5665, lng: 126.9780 };
 
   /* =========================
      유틸/도우미
@@ -208,7 +208,7 @@
       if (!schoolMap.has(key)) {
         schoolMap.set(key, {
           id: key, school, addr,
-          lat: SEOUL_CENTER[0], lng: SEOUL_CENTER[1], // 지오코딩으로 보정 예정
+          lat: SEOUL_CENTER.lat, lng: SEOUL_CENTER.lng, // 지오코딩으로 보정 예정
           sessions: [], courses: new Set()
         });
       }
@@ -224,7 +224,7 @@
     return Array.from(schoolMap.values()).map(v => ({ ...v, courses: Array.from(v.courses) }));
   }
 
-  function createPopupHTML(item) {
+  function createInfoWindowContent(item) {
     const sessionsHTML = item.sessions
       .sort((a,b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))
       .map(s => {
@@ -238,7 +238,7 @@
         `;
       }).join('');
     return `
-      <div class="popup">
+      <div class="info-window">
         <h3>${item.school}</h3>
         <div class="addr">${item.addr}</div>
         <div class="sessions">${sessionsHTML}</div>
@@ -246,62 +246,76 @@
     `;
   }
 
-  function svgDotDataUrl(color, labelText = '') {
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28">
-        <circle cx="14" cy="14" r="10" fill="${color}" stroke="#ffffff" stroke-width="3"/>
-        ${labelText ? `<text x="14" y="18" text-anchor="middle" font-size="12" fill="#ffffff" font-weight="700">${labelText}</text>` : ``}
-      </svg>`;
-    return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg.trim());
-  }
-
   /* =========================
      전역 상태
   ========================== */
-  let _kakaoMap, _clusterer, _geocoder;
+  let _googleMap, _geocoder;
   let allData = [];
   let selectedDates = new Set();
   let activeCourses = new Set(Object.keys(COURSES));
+  let markers = [];
+  let activeInfoWindow = null;
 
   /* =========================
-     Kakao 지도/지오코딩
+     Google Maps 초기화
   ========================== */
-  function initMapKakao() {
-    _kakaoMap = new kakao.maps.Map(document.getElementById('map'), {
-      center: new kakao.maps.LatLng(SEOUL_CENTER[0], SEOUL_CENTER[1]),
-      level: 6
+  function initMapGoogle() {
+    _googleMap = new google.maps.Map(document.getElementById('map'), {
+      center: SEOUL_CENTER,
+      zoom: 11,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false
     });
-    _clusterer = new kakao.maps.MarkerClusterer({
-      map: _kakaoMap, averageCenter: true, minLevel: 7
-    });
-    _geocoder = new kakao.maps.services.Geocoder();
+    _geocoder = new google.maps.Geocoder();
   }
 
-  const GEO_CACHE_PREFIX = 'kakao::geocode::';
+  /* =========================
+     지오코딩
+  ========================== */
+  const GEO_CACHE_PREFIX = 'google::geocode::';
   function getGeoCache(addr) {
-    try { const raw = localStorage.getItem(GEO_CACHE_PREFIX + addr); return raw ? JSON.parse(raw) : null; } catch { return null; }
+    try { 
+      const raw = localStorage.getItem(GEO_CACHE_PREFIX + addr); 
+      return raw ? JSON.parse(raw) : null; 
+    } catch { 
+      return null; 
+    }
   }
+  
   function setGeoCache(addr, lat, lng) {
-    try { localStorage.setItem(GEO_CACHE_PREFIX + addr, JSON.stringify({lat,lng})); } catch {}
+    try { 
+      localStorage.setItem(GEO_CACHE_PREFIX + addr, JSON.stringify({lat,lng})); 
+    } catch {}
   }
+  
   function geocodeAddress(addr) {
     return new Promise((resolve) => {
       const cached = getGeoCache(addr);
       if (cached && cached.lat && cached.lng) return resolve(cached);
-      _geocoder.addressSearch(addr, (result, status) => {
-        if (status === kakao.maps.services.Status.OK && result[0]) {
-          const lat = +result[0].y, lng = +result[0].x;
+      
+      _geocoder.geocode({ address: addr }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const location = results[0].geometry.location;
+          const lat = location.lat();
+          const lng = location.lng();
           setGeoCache(addr, lat, lng);
           resolve({ lat, lng });
-        } else { resolve(null); }
+        } else {
+          resolve(null);
+        }
       });
     });
   }
+  
   async function fixAllCoords(list) {
     for (const item of list) {
       const r = await geocodeAddress(item.addr);
-      if (r) { item.lat = r.lat; item.lng = r.lng; }
-      await new Promise(r => setTimeout(r, 60)); // 과도한 병렬요청 방지
+      if (r) { 
+        item.lat = r.lat; 
+        item.lng = r.lng; 
+      }
+      await new Promise(r => setTimeout(r, 100)); // API 제한 방지
     }
   }
 
@@ -330,12 +344,24 @@
         btn.title = dayjs(date).format('M월 D일 (ddd)');
         const toggle = () => {
           const on = selectedDates.has(date);
-          if (on) { selectedDates.delete(date); btn.classList.remove('selected'); btn.setAttribute('aria-pressed','false'); }
-          else { selectedDates.add(date); btn.classList.add('selected'); btn.setAttribute('aria-pressed','true'); }
+          if (on) { 
+            selectedDates.delete(date); 
+            btn.classList.remove('selected'); 
+            btn.setAttribute('aria-pressed','false'); 
+          } else { 
+            selectedDates.add(date); 
+            btn.classList.add('selected'); 
+            btn.setAttribute('aria-pressed','true'); 
+          }
           updateMarkers();
         };
         btn.addEventListener('click', toggle);
-        btn.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); toggle(); } });
+        btn.addEventListener('keydown', e => { 
+          if (e.key==='Enter'||e.key===' ') { 
+            e.preventDefault(); 
+            toggle(); 
+          } 
+        });
         datesDiv.appendChild(btn);
       });
       monthDiv.appendChild(datesDiv);
@@ -353,12 +379,18 @@
     const trainingDates = new Set(allDates);
     selectAllBtn.addEventListener('click', () => {
       trainingDates.forEach(d => selectedDates.add(d));
-      container.querySelectorAll('.date-cell.has-training').forEach(b => b.classList.add('selected'));
+      container.querySelectorAll('.date-cell.has-training').forEach(b => {
+        b.classList.add('selected');
+        b.setAttribute('aria-pressed','true');
+      });
       updateMarkers();
     });
     clearAllBtn.addEventListener('click', () => {
       selectedDates.clear();
-      container.querySelectorAll('.date-cell.has-training').forEach(b => b.classList.remove('selected'));
+      container.querySelectorAll('.date-cell.has-training').forEach(b => {
+        b.classList.remove('selected');
+        b.setAttribute('aria-pressed','false');
+      });
       updateMarkers();
     });
     controlsDiv.appendChild(selectAllBtn);
@@ -393,7 +425,12 @@
         updateMarkers();
       };
       filterDiv.addEventListener('click', toggle);
-      filterDiv.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); toggle(); } });
+      filterDiv.addEventListener('keydown', e => { 
+        if (e.key==='Enter'||e.key===' ') { 
+          e.preventDefault(); 
+          toggle(); 
+        } 
+      });
       container.appendChild(filterDiv);
     });
   }
@@ -401,32 +438,52 @@
   /* =========================
      마커/통계 갱신
   ========================== */
-  function createKakaoMarker(item) {
-    const list = item.courses.slice(0, 2);
-    const more = item.courses.length - list.length;
-    const color1 = (COURSES[list[0]]?.color) || '#666';
-    const label = more > 0 ? `+${more}` : '';
+  function createGoogleMarker(item) {
+    const courseColors = item.courses.map(c => COURSES[c]?.color || '#666');
+    const primaryColor = courseColors[0] || '#666';
+    
+    // SVG 마커 생성
+    const svgMarker = {
+      path: 'M12,2C8.13,2 5,5.13 5,9c0,5.25 7,13 7,13s7,-7.75 7,-13C19,5.13 15.87,2 12,2z',
+      fillColor: primaryColor,
+      fillOpacity: 1,
+      strokeWeight: 2,
+      strokeColor: '#ffffff',
+      scale: 1.5
+    };
 
-    const image = new kakao.maps.MarkerImage(
-      svgDotDataUrl(color1, label),
-      new kakao.maps.Size(28, 28),
-      { offset: new kakao.maps.Point(14, 14) }
-    );
-
-    const marker = new kakao.maps.Marker({
-      position: new kakao.maps.LatLng(item.lat, item.lng),
-      image
+    const marker = new google.maps.Marker({
+      position: { lat: item.lat, lng: item.lng },
+      map: _googleMap,
+      icon: svgMarker,
+      title: item.school
     });
 
-    const infowindow = new kakao.maps.InfoWindow({
-      content: `<div style="padding:10px 12px; max-width:260px;">${createPopupHTML(item)}</div>`
+    const infoWindow = new google.maps.InfoWindow({
+      content: createInfoWindowContent(item)
     });
 
-    kakao.maps.event.addListener(marker, 'click', () => infowindow.open(_kakaoMap, marker));
+    marker.addListener('click', () => {
+      if (activeInfoWindow) {
+        activeInfoWindow.close();
+      }
+      infoWindow.open(_googleMap, marker);
+      activeInfoWindow = infoWindow;
+    });
+
     return marker;
   }
 
   function updateMarkers() {
+    // 기존 마커 제거
+    markers.forEach(marker => marker.setMap(null));
+    markers = [];
+    
+    if (activeInfoWindow) {
+      activeInfoWindow.close();
+      activeInfoWindow = null;
+    }
+
     const filtered = allData.filter(item => {
       const hasCourse = item.courses.some(c => activeCourses.has(c));
       if (!hasCourse) return false;
@@ -437,23 +494,31 @@
       return true;
     });
 
-    _clusterer.clear();
-    const markers = filtered.map(createKakaoMarker);
-    _clusterer.addMarkers(markers);
+    // 새 마커 생성
+    markers = filtered.map(createGoogleMarker);
+    
     updateStats(filtered);
 
+    // 지도 뷰 조정
     if (filtered.length === 1) {
-      const { lat, lng } = filtered[0];
-      _kakaoMap.setLevel(4);
-      _kakaoMap.setCenter(new kakao.maps.LatLng(lat, lng));
+      _googleMap.setCenter({ lat: filtered[0].lat, lng: filtered[0].lng });
+      _googleMap.setZoom(15);
     } else if (filtered.length > 1) {
-      const bounds = new kakao.maps.LatLngBounds();
-      filtered.forEach(i => bounds.extend(new kakao.maps.LatLng(i.lat, i.lng)));
-      _kakaoMap.setBounds(bounds, 20, 20, 20, 20);
-      if (_kakaoMap.getLevel() < 3) _kakaoMap.setLevel(3);
+      const bounds = new google.maps.LatLngBounds();
+      filtered.forEach(item => {
+        bounds.extend(new google.maps.LatLng(item.lat, item.lng));
+      });
+      _googleMap.fitBounds(bounds);
+      
+      // 최소 줌 레벨 설정
+      google.maps.event.addListenerOnce(_googleMap, 'bounds_changed', () => {
+        if (_googleMap.getZoom() > 15) {
+          _googleMap.setZoom(15);
+        }
+      });
     } else {
-      _kakaoMap.setCenter(new kakao.maps.LatLng(SEOUL_CENTER[0], SEOUL_CENTER[1]));
-      _kakaoMap.setLevel(6);
+      _googleMap.setCenter(SEOUL_CENTER);
+      _googleMap.setZoom(11);
     }
   }
 
@@ -483,31 +548,37 @@
   }
 
   /* =========================
-     Kakao SDK 로더
+     Google Maps SDK 로더
   ========================== */
-  function loadKakaoAndInit() {
-    const meta = document.querySelector('meta[name="kakao-appkey"]');
-    const appkey = meta && meta.content;
+  function loadGoogleMapsAndInit() {
+    const meta = document.querySelector('meta[name="google-maps-key"]');
+    const apiKey = meta && meta.content;
     const err = document.getElementById('appError');
 
-    if (!appkey || appkey === '__KAKAO_JS_KEY__') {
-      err.textContent = '카카오 JavaScript 키가 주입되지 않았습니다. (GitHub Actions 시크릿/워크플로 확인)';
+    if (!apiKey || apiKey === '__GOOGLE_MAPS_KEY__') {
+      err.textContent = 'Google Maps API 키가 주입되지 않았습니다. (GitHub Actions 시크릿/워크플로 확인)';
       return;
     }
 
-    const s = document.createElement('script');
-    s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(appkey)}&libraries=services,clusterer&autoload=false`;
-    s.onload = () => {
-      kakao.maps.load(() => {
-        initMapKakao();
-        initApp();
-      });
+    // Google Maps API 동적 로드
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=geometry&callback=initGoogleMaps`;
+    script.async = true;
+    script.defer = true;
+    script.onerror = () => {
+      err.textContent = 'Google Maps API를 불러오지 못했습니다.';
     };
-    s.onerror = () => { err.textContent = '카카오 지도 스크립트를 불러오지 못했습니다.'; };
-    document.head.appendChild(s);
+
+    // 전역 콜백 함수 설정
+    window.initGoogleMaps = () => {
+      initMapGoogle();
+      initApp();
+    };
+
+    document.head.appendChild(script);
   }
 
-  document.addEventListener('DOMContentLoaded', loadKakaoAndInit);
+  document.addEventListener('DOMContentLoaded', loadGoogleMapsAndInit);
   </script>
 </body>
 </html>
