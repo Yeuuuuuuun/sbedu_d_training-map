@@ -455,9 +455,14 @@
   }
 
   function updateMarkers() {
-    // 기존 마커 제거
-    markers.forEach(marker => marker.setMap(null));
+    // 기존 마커와 라벨 제거
+    markers.forEach(marker => {
+      marker.setMap(null);
+      if (marker.label) marker.label.close();
+      if (marker.infoWindow) marker.infoWindow.close();
+    });
     markers = [];
+    
     if (activeInfoWindow) {
       activeInfoWindow.close();
       activeInfoWindow = null;
