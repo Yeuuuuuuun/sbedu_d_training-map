@@ -353,21 +353,25 @@
       monthHeader.textContent = dayjs(month).format('YYYY년 M월');
       monthDiv.appendChild(monthHeader);
       
-      // 요일 헤더 추가
-      const weekdaysDiv = document.createElement('div');
-      weekdaysDiv.className = 'calendar-grid';
+      // 테이블 생성
+      const table = document.createElement('table');
+      table.className = 'calendar-table';
+      
+      // 요일 헤더
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
       const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
       weekdays.forEach(day => {
-        const dayHeader = document.createElement('div');
-        dayHeader.className = 'weekday-header';
-        dayHeader.textContent = day;
-        weekdaysDiv.appendChild(dayHeader);
+        const th = document.createElement('th');
+        th.className = 'weekday-header';
+        th.textContent = day;
+        headerRow.appendChild(th);
       });
-      monthDiv.appendChild(weekdaysDiv);
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
       
-      // 달력 그리드
-      const calendarGrid = document.createElement('div');
-      calendarGrid.className = 'calendar-grid';
+      // 달력 본체
+      const tbody = document.createElement('tbody');
       
       // 해당 월의 첫 날과 마지막 날 계산
       const firstDay = dayjs(month + '-01');
@@ -375,48 +379,58 @@
       const startDate = firstDay.startOf('week');
       const endDate = lastDay.endOf('week');
       
-      // 달력 셀 생성
+      // 주별로 행 생성
       let currentDate = startDate;
       while (currentDate.isBefore(endDate) || currentDate.isSame(endDate)) {
-        const btn = document.createElement('button');
-        btn.className = 'date-cell';
-        btn.type = 'button';
-        btn.textContent = currentDate.format('D');
+        const row = document.createElement('tr');
         
-        const dateStr = currentDate.format('YYYY-MM-DD');
-        const isCurrentMonth = currentDate.format('YYYY-MM') === month;
-        const hasTraining = allDates.has(dateStr);
-        
-        if (!isCurrentMonth) {
-          btn.disabled = true;
-        } else if (hasTraining) {
-          btn.classList.add('has-training');
-          btn.title = `${currentDate.format('M월 D일 (ddd)')} - 연수 있음`;
+        // 일주일 생성
+        for (let i = 0; i < 7; i++) {
+          const cell = document.createElement('td');
+          const btn = document.createElement('button');
+          btn.className = 'date-cell';
+          btn.type = 'button';
+          btn.textContent = currentDate.format('D');
           
-          btn.addEventListener('click', () => {
-            const isSelected = selectedDates.has(dateStr);
-            if (isSelected) {
-              selectedDates.delete(dateStr);
-              btn.classList.remove('selected');
-            } else {
-              selectedDates.add(dateStr);
-              btn.classList.add('selected');
-            }
-            updateMarkers();
-          });
-        } else {
-          btn.title = currentDate.format('M월 D일 (ddd)');
+          const dateStr = currentDate.format('YYYY-MM-DD');
+          const isCurrentMonth = currentDate.format('YYYY-MM') === month;
+          const hasTraining = allDates.has(dateStr);
+          
+          if (!isCurrentMonth) {
+            btn.disabled = true;
+          } else if (hasTraining) {
+            btn.classList.add('has-training');
+            btn.title = `${currentDate.format('M월 D일 (ddd)')} - 연수 있음`;
+            
+            btn.addEventListener('click', () => {
+              const isSelected = selectedDates.has(dateStr);
+              if (isSelected) {
+                selectedDates.delete(dateStr);
+                btn.classList.remove('selected');
+              } else {
+                selectedDates.add(dateStr);
+                btn.classList.add('selected');
+              }
+              updateMarkers();
+            });
+          } else {
+            btn.title = currentDate.format('M월 D일 (ddd)');
+          }
+          
+          cell.appendChild(btn);
+          row.appendChild(cell);
+          currentDate = currentDate.add(1, 'day');
         }
         
-        calendarGrid.appendChild(btn);
-        currentDate = currentDate.add(1, 'day');
+        tbody.appendChild(row);
       }
       
-      monthDiv.appendChild(calendarGrid);
+      table.appendChild(tbody);
+      monthDiv.appendChild(table);
       container.appendChild(monthDiv);
     });
 
-    // 개선된 컨트롤 버튼
+    // 컨트롤 버튼
     const controlsDiv = document.createElement('div');
     controlsDiv.className = 'calendar-controls';
     
