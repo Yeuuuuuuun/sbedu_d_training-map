@@ -1,4 +1,4 @@
-name: Deploy Kakao Map to Pages
+name: Deploy Google Maps to Pages
 on:
   push:
     branches: [ main ]
@@ -20,28 +20,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Inject Kakao JS Key
+      - name: Inject Google Maps API Key
         run: |
-          echo "Starting key injection..."
-          if [ -z "$KAKAO_JS_KEY" ]; then
-            echo "Error: KAKAO_JS_KEY is empty"
+          echo "Starting Google Maps API key injection..."
+          if [ -z "$GOOGLE_MAPS_KEY" ]; then
+            echo "Error: GOOGLE_MAPS_KEY is empty"
             exit 1
           fi
           
-          echo "KAKAO_JS_KEY is set (length: ${#KAKAO_JS_KEY})"
+          echo "GOOGLE_MAPS_KEY is set (length: ${#GOOGLE_MAPS_KEY})"
           
-          # 더 안전한 sed 명령어 사용 (구분자를 |로 변경)
-          sed -i "s|__KAKAO_JS_KEY__|${KAKAO_JS_KEY}|g" index.html
+          # Google Maps API 키 치환
+          sed -i "s|__GOOGLE_MAPS_KEY__|${GOOGLE_MAPS_KEY}|g" index.html
           
           # 치환 결과 확인
-          if grep -q "__KAKAO_JS_KEY__" index.html; then
+          if grep -q "__GOOGLE_MAPS_KEY__" index.html; then
             echo "Error: Placeholder replacement failed"
             exit 1
           else
-            echo "Success: API key injected successfully"
+            echo "Success: Google Maps API key injected successfully"
           fi
         env:
-          KAKAO_JS_KEY: ${{ secrets.KAKAO_JS_KEY }}
+          GOOGLE_MAPS_KEY: ${{ secrets.GOOGLE_MAPS_KEY }}
           
       - name: Setup Pages
         uses: actions/configure-pages@v5
