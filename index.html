@@ -239,7 +239,9 @@
       zoom: 11,
       mapTypeControl: false,
       streetViewControl: false,
-      fullscreenControl: false
+      fullscreenControl: false,
+      scrollwheel: true,  // 마우스 휠 줌 활성화
+      gestureHandling: 'greedy'  // 모든 제스처 허용 (Ctrl 없이도 줌 가능)
     });
     
     _geocoder = new google.maps.Geocoder();
